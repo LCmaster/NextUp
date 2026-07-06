@@ -8,6 +8,7 @@ A modern, efficient ticketing and to-do list application designed to help teams 
 - **To-Do Management**: Personal and team-based to-do lists to keep track of daily tasks.
 - **Workflow Automation**: Simple state transitions (e.g., To Do -> In Progress -> Done).
 - **Responsive Design**: Accessible on desktop and mobile devices.
+- **Real-time Updates**: Instant synchronization of tickets and tasks across clients via WebSockets.
 
 ## 🛠 Technologies Used
 
@@ -16,6 +17,7 @@ A modern, efficient ticketing and to-do list application designed to help teams 
 - **Database**: PostgreSQL
 - **Styling**: Tailwind CSS
 - **Containerization**: Docker
+- **Real-time**: WebSockets
 
 ## 📦 Getting Started
 
