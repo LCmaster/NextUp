@@ -257,7 +257,7 @@ func (h *ticketHandler) breakdownTicket(w http.ResponseWriter, r *http.Request) 
 	model := client.GenerativeModel("gemini-flash-latest")
 	model.ResponseMIMEType = "application/json"
 
-	prompt := "Break down the following ticket into 3-5 smaller, actionable sub-tasks. " +
+	prompt := "Break down the following ticket into 2-5 smaller, actionable sub-tasks. " +
 		"Return ONLY a JSON array of objects with 'title' and 'description' keys.\n\n" +
 		"Ticket Title: " + ticket.Title + "\n"
 	if ticket.Description.Valid {
