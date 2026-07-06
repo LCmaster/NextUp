@@ -9,6 +9,7 @@
 		createTicket,
 		updateTicket,
 		deleteTicket,
+		breakdownTicket,
 		createTodo,
 		updateTodo,
 		deleteTodo
@@ -39,19 +40,21 @@
 	let todos: Todo[] = $derived($todosStore || []);
 
 	// Kanban columns
-	let todoTickets = $derived(tickets.filter((t) => t.status === 'todo'));
-	let inProgressTickets = $derived(tickets.filter((t) => t.status === 'in_progress'));
-	let doneTickets = $derived(tickets.filter((t) => t.status === 'done'));
+	let todoTickets = $derived(tickets.filter((t) => t.status === 'todo' && !t.parent_id));
+	let inProgressTickets = $derived(tickets.filter((t) => t.status === 'in_progress' && !t.parent_id));
+	let doneTickets = $derived(tickets.filter((t) => t.status === 'done' && !t.parent_id));
 
 	// Tab state
 	let activeTab = $state<'board' | 'todos'>('board');
 
 	// New ticket form
 	let showNewTicket = $state(false);
+	let newTicketParentId = $state<string | null>(null);
 	let newTicketTitle = $state('');
 	let newTicketDesc = $state('');
 	let newTicketPriority = $state('medium');
 	let creatingTicket = $state(false);
+	let breakingDownId = $state<string | null>(null);
 
 	// New todo form
 	let newTodoTitle = $state('');
@@ -80,16 +83,29 @@
 				project_id: projectId,
 				title: newTicketTitle.trim(),
 				description: newTicketDesc.trim() || undefined,
-				priority: newTicketPriority
+				priority: newTicketPriority,
+				parent_id: newTicketParentId || undefined
 			});
 			newTicketTitle = '';
 			newTicketDesc = '';
 			newTicketPriority = 'medium';
+			newTicketParentId = null;
 			showNewTicket = false;
 		} catch (err) {
 			console.error('Failed to create ticket:', err);
 		} finally {
 			creatingTicket = false;
+		}
+	}
+
+	async function handleBreakdown(ticketId: string) {
+		breakingDownId = ticketId;
+		try {
+			await breakdownTicket(ticketId);
+		} catch (err) {
+			console.error('Failed to breakdown ticket:', err);
+		} finally {
+			breakingDownId = null;
 		}
 	}
 
@@ -194,7 +210,7 @@
 		{#if activeTab === 'board'}
 			<div class="mb-4">
 				<button
-					onclick={() => (showNewTicket = !showNewTicket)}
+					onclick={() => { newTicketParentId = null; showNewTicket = !showNewTicket; }}
 					class="flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-600"
 				>
 					<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -206,6 +222,9 @@
 
 			{#if showNewTicket}
 				<div class="mb-6 rounded-xl border border-primary-200 bg-primary-50/50 p-6 dark:border-primary-800/30 dark:bg-primary-900/10">
+					{#if newTicketParentId}
+						<h3 class="mb-4 text-sm font-semibold text-surface-900 dark:text-white">New Sub-task</h3>
+					{/if}
 					<form onsubmit={handleCreateTicket} class="flex flex-col gap-4">
 						<input
 							type="text"
@@ -239,7 +258,7 @@
 							</button>
 							<button
 								type="button"
-								onclick={() => (showNewTicket = false)}
+								onclick={() => { showNewTicket = false; newTicketParentId = null; }}
 								class="rounded-lg px-4 py-2 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-200 dark:text-surface-200 dark:hover:bg-surface-800"
 							>
 								Cancel
@@ -248,6 +267,85 @@
 					</form>
 				</div>
 			{/if}
+
+			{#snippet ticketCard(ticket: Ticket, depth: number)}
+				<div class="group relative rounded-lg border bg-white p-4 shadow-sm transition-all dark:bg-surface-850
+					{depth > 0 ? 'ml-6 mt-3 border-l-4 border-l-primary-400 border-y-surface-200/60 border-r-surface-200/60 dark:border-y-surface-800 dark:border-r-surface-800' : 'border-surface-200/60 hover:shadow-md dark:border-surface-800'}">
+					<div class="mb-2 flex items-start justify-between">
+						<h4 class="text-sm font-medium text-surface-900 dark:text-white">{ticket.title}</h4>
+						<button
+							onclick={() => handleDeleteTicket(ticket.id)}
+							class="rounded p-1 text-surface-700/20 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:text-surface-200/20 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+							aria-label="Delete ticket"
+						>
+							<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+							</svg>
+						</button>
+					</div>
+					{#if ticket.description}
+						<p class="mb-3 line-clamp-2 text-xs text-surface-700/50 dark:text-surface-200/30">{ticket.description}</p>
+					{/if}
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<span class="rounded-full px-2 py-0.5 text-[10px] font-semibold {PRIORITY_COLORS[ticket.priority] || PRIORITY_COLORS.medium}">
+								{ticket.priority}
+							</span>
+							{#if depth < 3}
+								<button 
+									onclick={() => { newTicketParentId = ticket.id; showNewTicket = true; window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+									class="rounded px-1.5 py-0.5 text-[10px] font-medium text-surface-700/60 transition-colors hover:bg-surface-200 hover:text-surface-900 dark:text-surface-200/40 dark:hover:bg-surface-800 dark:hover:text-white"
+									title="Add Sub-task"
+								>
+									+ Sub-task
+								</button>
+								<button
+									type="button"
+									onclick={() => handleBreakdown(ticket.id)}
+									disabled={breakingDownId === ticket.id}
+									class="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-purple-600/80 transition-colors hover:bg-purple-50 hover:text-purple-700 dark:text-purple-400/80 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 disabled:opacity-50"
+									title="AI Breakdown"
+								>
+									<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.428-1.428L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.428-1.428l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.428 1.428l1.183.394-1.183.394a2.25 2.25 0 0 0-1.428 1.428Z" />
+									</svg>
+									{breakingDownId === ticket.id ? 'Thinking...' : 'AI Breakdown'}
+								</button>
+							{/if}
+						</div>
+						<!-- Move buttons -->
+						<div class="flex gap-1">
+							{#if ticket.status !== 'todo'}
+								<button
+									onclick={() => moveTicket(ticket, ticket.status === 'done' ? 'in_progress' : 'todo')}
+									class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
+									title="Move left"
+								>
+									<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+									</svg>
+								</button>
+							{/if}
+							{#if ticket.status !== 'done'}
+								<button
+									onclick={() => moveTicket(ticket, ticket.status === 'todo' ? 'in_progress' : 'done')}
+									class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
+									title="Move right"
+								>
+									<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+									</svg>
+								</button>
+							{/if}
+						</div>
+					</div>
+
+					<!-- Render sub-tasks -->
+					{#each tickets.filter(t => t.parent_id === ticket.id) as child (child.id)}
+						{@render ticketCard(child, depth + 1)}
+					{/each}
+				</div>
+			{/snippet}
 
 			<!-- Kanban board -->
 			<div class="grid grid-cols-3 gap-6">
@@ -263,53 +361,7 @@
 						</div>
 						<div class="space-y-3">
 							{#each getColumnTickets(status) as ticket (ticket.id)}
-								<div class="group rounded-lg border border-surface-200/60 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-surface-800 dark:bg-surface-850">
-									<div class="mb-2 flex items-start justify-between">
-										<h4 class="text-sm font-medium text-surface-900 dark:text-white">{ticket.title}</h4>
-										<button
-											onclick={() => handleDeleteTicket(ticket.id)}
-											class="rounded p-1 text-surface-700/20 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:text-surface-200/20 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-											aria-label="Delete ticket"
-										>
-											<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-												<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-											</svg>
-										</button>
-									</div>
-									{#if ticket.description}
-										<p class="mb-3 line-clamp-2 text-xs text-surface-700/50 dark:text-surface-200/30">{ticket.description}</p>
-									{/if}
-									<div class="flex items-center justify-between">
-										<span class="rounded-full px-2 py-0.5 text-[10px] font-semibold {PRIORITY_COLORS[ticket.priority] || PRIORITY_COLORS.medium}">
-											{ticket.priority}
-										</span>
-										<!-- Move buttons -->
-										<div class="flex gap-1">
-											{#if status !== 'todo'}
-												<button
-													onclick={() => moveTicket(ticket, status === 'done' ? 'in_progress' : 'todo')}
-													class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
-													title="Move left"
-												>
-													<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-														<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-													</svg>
-												</button>
-											{/if}
-											{#if status !== 'done'}
-												<button
-													onclick={() => moveTicket(ticket, status === 'todo' ? 'in_progress' : 'done')}
-													class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
-													title="Move right"
-												>
-													<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-														<path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-													</svg>
-												</button>
-											{/if}
-										</div>
-									</div>
-								</div>
+								{@render ticketCard(ticket, 0)}
 							{/each}
 						</div>
 					</div>
