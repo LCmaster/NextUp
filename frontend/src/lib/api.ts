@@ -47,6 +47,7 @@ export interface Ticket {
 	status: string;
 	priority: string;
 	assignee_id: string | null;
+	parent_id: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -122,6 +123,7 @@ export function createTicket(data: {
 	status?: string;
 	priority?: string;
 	assignee_id?: string;
+	parent_id?: string;
 }): Promise<Ticket> {
 	return request('POST', '/api/v1/tickets', data);
 }
@@ -142,6 +144,7 @@ export function updateTicket(
 		status: string;
 		priority: string;
 		assignee_id?: string;
+		parent_id?: string;
 	}
 ): Promise<Ticket> {
 	return request('PUT', `/api/v1/tickets/${id}`, data);
@@ -149,6 +152,10 @@ export function updateTicket(
 
 export function deleteTicket(id: string): Promise<void> {
 	return request('DELETE', `/api/v1/tickets/${id}`);
+}
+
+export function breakdownTicket(id: string): Promise<Ticket[]> {
+	return request('POST', `/api/v1/tickets/${id}/breakdown`);
 }
 
 // --- Todos ---
