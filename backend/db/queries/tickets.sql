@@ -1,6 +1,6 @@
 -- name: CreateTicket :one
-INSERT INTO tickets (project_id, title, description, status, priority, assignee_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO tickets (project_id, title, description, status, priority, assignee_id, parent_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetTicketByID :one
@@ -16,6 +16,7 @@ SET title = $2,
     status = $4,
     priority = $5,
     assignee_id = $6,
+    parent_id = $7,
     updated_at = NOW()
 WHERE id = $1
 RETURNING *;

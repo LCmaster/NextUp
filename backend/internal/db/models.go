@@ -27,6 +27,7 @@ type Ticket struct {
 	AssigneeID  pgtype.UUID        `json:"assignee_id"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ParentID    pgtype.UUID        `json:"parent_id"`
 }
 
 type Todo struct {

@@ -12,9 +12,9 @@ import (
 )
 
 const createTicket = `-- name: CreateTicket :one
-INSERT INTO tickets (project_id, title, description, status, priority, assignee_id)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at
+INSERT INTO tickets (project_id, title, description, status, priority, assignee_id, parent_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id
 `
 
 type CreateTicketParams struct {
@@ -24,6 +24,7 @@ type CreateTicketParams struct {
 	Status      string      `json:"status"`
 	Priority    string      `json:"priority"`
 	AssigneeID  pgtype.UUID `json:"assignee_id"`
+	ParentID    pgtype.UUID `json:"parent_id"`
 }
 
 func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Ticket, error) {
@@ -34,6 +35,7 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		arg.Status,
 		arg.Priority,
 		arg.AssigneeID,
+		arg.ParentID,
 	)
 	var i Ticket
 	err := row.Scan(
@@ -46,6 +48,7 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		&i.AssigneeID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
 	)
 	return i, err
 }
@@ -60,7 +63,7 @@ func (q *Queries) DeleteTicket(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getTicketByID = `-- name: GetTicketByID :one
-SELECT id, project_id, title, description, status, priority, assignee_id, created_at, updated_at FROM tickets WHERE id = $1
+SELECT id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id FROM tickets WHERE id = $1
 `
 
 func (q *Queries) GetTicketByID(ctx context.Context, id pgtype.UUID) (Ticket, error) {
@@ -76,12 +79,13 @@ func (q *Queries) GetTicketByID(ctx context.Context, id pgtype.UUID) (Ticket, er
 		&i.AssigneeID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
 	)
 	return i, err
 }
 
 const listTicketsByProject = `-- name: ListTicketsByProject :many
-SELECT id, project_id, title, description, status, priority, assignee_id, created_at, updated_at FROM tickets WHERE project_id = $1 ORDER BY created_at DESC
+SELECT id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id FROM tickets WHERE project_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListTicketsByProject(ctx context.Context, projectID pgtype.UUID) ([]Ticket, error) {
@@ -103,6 +107,7 @@ func (q *Queries) ListTicketsByProject(ctx context.Context, projectID pgtype.UUI
 			&i.AssigneeID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ParentID,
 		); err != nil {
 			return nil, err
 		}
@@ -121,9 +126,10 @@ SET title = $2,
     status = $4,
     priority = $5,
     assignee_id = $6,
+    parent_id = $7,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at
+RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id
 `
 
 type UpdateTicketParams struct {
@@ -133,6 +139,7 @@ type UpdateTicketParams struct {
 	Status      string      `json:"status"`
 	Priority    string      `json:"priority"`
 	AssigneeID  pgtype.UUID `json:"assignee_id"`
+	ParentID    pgtype.UUID `json:"parent_id"`
 }
 
 func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Ticket, error) {
@@ -143,6 +150,7 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 		arg.Status,
 		arg.Priority,
 		arg.AssigneeID,
+		arg.ParentID,
 	)
 	var i Ticket
 	err := row.Scan(
@@ -155,6 +163,7 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 		&i.AssigneeID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
 	)
 	return i, err
 }
