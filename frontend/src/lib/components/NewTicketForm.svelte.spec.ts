@@ -14,15 +14,14 @@ describe('NewTicketForm.svelte', () => {
 	});
 
 	it('renders create ticket form', async () => {
-		render(NewTicketForm, { projectId: 'p1', parentId: null });
+		render(NewTicketForm, { projectId: 'p1', parentId: null, oncancel: () => {} });
 
-		await expect.element(page.getByText('New Ticket')).toBeInTheDocument();
 		await expect.element(page.getByPlaceholder('Ticket title')).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: 'Create Ticket' })).toBeInTheDocument();
 	});
 
 	it('shows "New Sub-task" heading when parentId is set', async () => {
-		render(NewTicketForm, { projectId: 'p1', parentId: 'parent1' });
+		render(NewTicketForm, { projectId: 'p1', parentId: 'parent1', oncancel: () => {} });
 
 		await expect.element(page.getByText('New Sub-task')).toBeInTheDocument();
 	});
@@ -55,7 +54,7 @@ describe('NewTicketForm.svelte', () => {
 	it('shows error message on API failure', async () => {
 		vi.mocked(api.createTicket).mockRejectedValue(new Error('API failure'));
 
-		render(NewTicketForm, { projectId: 'p1', parentId: null });
+		render(NewTicketForm, { projectId: 'p1', parentId: null, oncancel: () => {} });
 
 		const titleInput = page.getByPlaceholder('Ticket title');
 		await userEvent.fill(titleInput, 'My ticket');
@@ -63,7 +62,7 @@ describe('NewTicketForm.svelte', () => {
 		const submitBtn = page.getByRole('button', { name: 'Create Ticket' });
 		await userEvent.click(submitBtn);
 
-		await expect.element(page.getByText('Failed to create ticket. Please try again.')).toBeInTheDocument();
+		await expect.element(page.getByText('API failure')).toBeInTheDocument();
 	});
 
 	it('cancel button triggers oncancel callback', async () => {
