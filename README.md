@@ -17,7 +17,6 @@ A modern, efficient ticketing and to-do list application designed to help teams 
 - **Database**: PostgreSQL
 - **Styling**: Tailwind CSS
 - **Containerization**: Docker
-- **Real-time**: WebSockets
 
 ## 📦 Getting Started
 
