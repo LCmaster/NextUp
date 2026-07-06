@@ -11,11 +11,11 @@ import (
 )
 
 type userHandler struct {
-	queries *db.Queries
+	queries db.Querier
 }
 
 // RegisterUserRoutes sets up user-related routes.
-func RegisterUserRoutes(r chi.Router, queries *db.Queries) {
+func RegisterUserRoutes(r chi.Router, queries db.Querier) {
 	h := &userHandler{queries: queries}
 
 	r.Route("/users", func(r chi.Router) {

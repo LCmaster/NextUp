@@ -14,13 +14,13 @@ import (
 )
 
 type ticketHandler struct {
-	queries *db.Queries
+	queries db.Querier
 	hub     *ws.Hub
 	svc     *services.TicketService
 }
 
 // RegisterTicketRoutes sets up ticket-related routes.
-func RegisterTicketRoutes(r chi.Router, queries *db.Queries, hub *ws.Hub, svc *services.TicketService) {
+func RegisterTicketRoutes(r chi.Router, queries db.Querier, hub *ws.Hub, svc *services.TicketService) {
 	h := &ticketHandler{queries: queries, hub: hub, svc: svc}
 
 	r.Route("/tickets", func(r chi.Router) {

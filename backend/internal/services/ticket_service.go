@@ -14,15 +14,20 @@ import (
 	"github.com/LCmaster/NextUp/internal/ws"
 )
 
+// AIGenerator is an interface over the Gemini model, enabling test mocking.
+type AIGenerator interface {
+	GenerateContent(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error)
+}
+
 // TicketService encapsulates business logic for tickets.
 type TicketService struct {
-	queries *db.Queries
+	queries db.Querier
 	hub     *ws.Hub
-	ai      *genai.GenerativeModel
+	ai      AIGenerator
 }
 
 // NewTicketService creates a TicketService. ai may be nil if no API key is configured.
-func NewTicketService(queries *db.Queries, hub *ws.Hub, ai *genai.GenerativeModel) *TicketService {
+func NewTicketService(queries db.Querier, hub *ws.Hub, ai AIGenerator) *TicketService {
 	return &TicketService{queries: queries, hub: hub, ai: ai}
 }
 

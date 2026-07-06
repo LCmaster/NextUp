@@ -11,12 +11,12 @@ import (
 )
 
 type projectHandler struct {
-	queries *db.Queries
+	queries db.Querier
 	hub     *ws.Hub
 }
 
 // RegisterProjectRoutes sets up project-related routes.
-func RegisterProjectRoutes(r chi.Router, queries *db.Queries, hub *ws.Hub) {
+func RegisterProjectRoutes(r chi.Router, queries db.Querier, hub *ws.Hub) {
 	h := &projectHandler{queries: queries, hub: hub}
 
 	r.Route("/projects", func(r chi.Router) {
