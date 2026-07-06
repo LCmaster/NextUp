@@ -33,7 +33,8 @@ describe('NewTicketForm.svelte', () => {
 		});
 
 		const oncreated = vi.fn();
-		render(NewTicketForm, { projectId: 'p1', parentId: null, oncreated });
+		const oncancel = vi.fn();
+		render(NewTicketForm, { projectId: 'p1', parentId: null, oncreated, oncancel });
 
 		const titleInput = page.getByPlaceholder('Ticket title');
 		await userEvent.fill(titleInput, 'My ticket');
