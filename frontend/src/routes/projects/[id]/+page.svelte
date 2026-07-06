@@ -12,16 +12,18 @@
 	} from '$lib/api';
 	import type { Project, Ticket } from '$lib/api';
 
-	const STATUSES = ['todo', 'in_progress', 'done'] as const;
+	const STATUSES = ['todo', 'in_progress', 'done', 'archived'] as const;
 	const STATUS_LABELS: Record<string, string> = {
 		todo: 'To Do',
 		in_progress: 'In Progress',
-		done: 'Done'
+		done: 'Done',
+		archived: 'Archived'
 	};
 	const STATUS_COLORS: Record<string, string> = {
 		todo: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 		in_progress: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-		done: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+		done: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+		archived: 'bg-slate-200 text-slate-600 dark:bg-surface-800 dark:text-surface-400 opacity-70'
 	};
 	const PRIORITY_COLORS: Record<string, string> = {
 		low: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -39,6 +41,7 @@
 	let todoTickets = $derived(tickets.filter((t) => t.status === 'todo' && !t.parent_id));
 	let inProgressTickets = $derived(tickets.filter((t) => t.status === 'in_progress' && !t.parent_id));
 	let doneTickets = $derived(tickets.filter((t) => t.status === 'done' && !t.parent_id));
+	let archivedTickets = $derived(tickets.filter((t) => t.status === 'archived' && !t.parent_id));
 
 
 
@@ -168,10 +171,23 @@
 
 
 
+	function getLeftStatus(status: string) {
+		if (status === 'archived') return 'done';
+		if (status === 'done') return 'in_progress';
+		return 'todo';
+	}
+	
+	function getRightStatus(status: string) {
+		if (status === 'todo') return 'in_progress';
+		if (status === 'in_progress') return 'done';
+		return 'archived';
+	}
+
 	function getColumnTickets(status: string): Ticket[] {
 		if (status === 'todo') return todoTickets;
 		if (status === 'in_progress') return inProgressTickets;
-		return doneTickets;
+		if (status === 'done') return doneTickets;
+		return archivedTickets;
 	}
 </script>
 
@@ -361,29 +377,28 @@
 								{/if}
 							</div>
 							<!-- Move buttons -->
-							<div class="flex gap-1">
-								{#if ticket.status !== 'todo'}
-									<button
-										onclick={(e) => { e.stopPropagation(); moveTicket(ticket, ticket.status === 'done' ? 'in_progress' : 'todo'); }}
-										class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
-										title="Move left"
-									>
-										<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-											<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-										</svg>
-									</button>
-								{/if}
-								{#if ticket.status !== 'done'}
-									<button
-										onclick={(e) => { e.stopPropagation(); moveTicket(ticket, ticket.status === 'todo' ? 'in_progress' : 'done'); }}
-										class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
-										title="Move right"
-									>
-										<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-											<path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-										</svg>
-									</button>
-								{/if}
+							<div class="flex gap-1">							{#if ticket.status !== 'todo'}
+								<button
+									onclick={(e) => { e.stopPropagation(); moveTicket(ticket, getLeftStatus(ticket.status)); }}
+									class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
+									title="Move left"
+								>
+									<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+									</svg>
+								</button>
+							{/if}
+							{#if ticket.status !== 'archived'}
+								<button
+									onclick={(e) => { e.stopPropagation(); moveTicket(ticket, getRightStatus(ticket.status)); }}
+									class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
+									title="Move right"
+								>
+									<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+										<path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+									</svg>
+								</button>
+							{/if}
 							</div>
 						</div>
 					{/if}
@@ -396,7 +411,7 @@
 			{/snippet}
 
 			<!-- Kanban board -->
-			<div class="grid grid-cols-3 gap-6">
+			<div class="grid grid-cols-4 gap-6">
 				{#each STATUSES as status}
 					<div class="rounded-xl bg-surface-100/50 p-4 dark:bg-surface-900/50">
 						<div class="mb-4 flex items-center justify-between">
