@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -253,7 +254,7 @@ func (h *ticketHandler) breakdownTicket(w http.ResponseWriter, r *http.Request) 
 	}
 	defer client.Close()
 
-	model := client.GenerativeModel("gemini-1.5-pro")
+	model := client.GenerativeModel("gemini-flash-latest")
 	model.ResponseMIMEType = "application/json"
 
 	prompt := "Break down the following ticket into 3-5 smaller, actionable sub-tasks. " +
@@ -265,6 +266,7 @@ func (h *ticketHandler) breakdownTicket(w http.ResponseWriter, r *http.Request) 
 
 	resp, err := model.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
+		log.Printf("Gemini API error: %v", err)
 		respondError(w, http.StatusInternalServerError, "Failed to generate breakdown")
 		return
 	}
