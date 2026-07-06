@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import { userStore } from '$lib/stores/user';
 	import { wsStore, applyWsEvent } from '$lib/stores/websocket';
+	import Toast from '$lib/components/Toast.svelte';
 
 	let { children } = $props();
 
@@ -29,3 +30,4 @@
 </svelte:head>
 
 {@render children()}
+<Toast />

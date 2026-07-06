@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { updateTicket, deleteTicket, breakdownTicket } from '$lib/api';
+	import { toast } from '$lib/stores/toast';
 	import type { Ticket } from '$lib/api';
 
 	const PRIORITY_COLORS: Record<string, string> = {
@@ -86,6 +87,7 @@
 			await deleteTicket(ticket.id);
 		} catch (err) {
 			console.error('Failed to delete ticket:', err);
+			toast.error('Failed to delete ticket.');
 		}
 	}
 
@@ -93,9 +95,11 @@
 		breakingDown = true;
 		try {
 			await breakdownTicket(ticket.id);
+			toast.success('Sub-tasks generated successfully');
 			onbreakdown?.(ticket.id);
 		} catch (err) {
 			console.error('Failed to breakdown ticket:', err);
+			toast.error('AI breakdown failed. Please try again.');
 		} finally {
 			breakingDown = false;
 		}

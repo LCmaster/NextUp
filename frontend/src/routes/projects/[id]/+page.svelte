@@ -2,13 +2,16 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { ticketsStore } from '$lib/stores/websocket';
+	import { toast } from '$lib/stores/toast';
 	import { getProject, listTickets } from '$lib/api';
 	import type { Project } from '$lib/api';
 	import KanbanBoard from '$lib/components/KanbanBoard.svelte';
+	import KanbanSkeleton from '$lib/components/KanbanSkeleton.svelte';
 	import NewTicketForm from '$lib/components/NewTicketForm.svelte';
 
 	let projectId = $derived(page.params.id as string);
 	let project = $state<Project | null>(null);
+	let loading = $state(true);
 	let tickets = $derived($ticketsStore || []);
 
 	// New-ticket form state
@@ -17,11 +20,15 @@
 
 	onMount(async () => {
 		try {
-			project = await getProject(projectId);
-			const ticketData = await listTickets(projectId);
-			ticketsStore.set(ticketData || []);
+			[project] = await Promise.all([
+				getProject(projectId),
+				listTickets(projectId).then((data) => ticketsStore.set(data || []))
+			]);
 		} catch (err) {
 			console.error('Failed to load project:', err);
+			toast.error('Failed to load project. Please try refreshing.');
+		} finally {
+			loading = false;
 		}
 	});
 
@@ -35,14 +42,27 @@
 		showNewTicket = false;
 		newTicketParentId = null;
 	}
+
+	function handleTicketCreated() {
+		const label = newTicketParentId ? 'Sub-task created' : 'Ticket created';
+		toast.success(label);
+	}
 </script>
 
 <svelte:head>
 	<title>{project?.name || 'Project'} — NextUp</title>
 </svelte:head>
 
-{#if project}
-	<div class="max-w-full">
+<div class="max-w-full">
+	{#if loading}
+		<!-- Header shimmer -->
+		<div class="mb-6">
+			<div class="h-9 w-56 animate-pulse rounded-lg bg-surface-200 dark:bg-surface-800"></div>
+			<div class="mt-2 h-4 w-80 animate-pulse rounded bg-surface-100 dark:bg-surface-700/50"></div>
+		</div>
+		<div class="mb-4 h-9 w-32 animate-pulse rounded-lg bg-surface-200 dark:bg-surface-800"></div>
+		<KanbanSkeleton />
+	{:else if project}
 		<!-- Header -->
 		<div class="mb-6 flex items-center justify-between">
 			<div>
@@ -73,6 +93,7 @@
 				{projectId}
 				parentId={newTicketParentId}
 				oncancel={closeNewTicket}
+				oncreated={handleTicketCreated}
 			/>
 		{/if}
 
@@ -81,11 +102,11 @@
 			{tickets}
 			onrequestsubtask={(parentId) => openNewTicket(parentId)}
 		/>
-	</div>
-{:else}
-	<div class="flex min-h-[50vh] items-center justify-center">
-		<p class="animate-pulse text-sm text-surface-700/60 dark:text-surface-200/40">
-			Loading project...
-		</p>
-	</div>
-{/if}
+	{:else}
+		<div class="flex min-h-[50vh] items-center justify-center">
+			<p class="text-sm text-surface-700/60 dark:text-surface-200/40">
+				Project not found.
+			</p>
+		</div>
+	{/if}
+</div>
