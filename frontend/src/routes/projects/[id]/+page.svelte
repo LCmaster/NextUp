@@ -35,8 +35,8 @@
 
 	let projectId = $derived(page.params.id as string);
 	let project = $state<Project | null>(null);
-	let tickets: Ticket[] = $derived($ticketsStore);
-	let todos: Todo[] = $derived($todosStore);
+	let tickets: Ticket[] = $derived($ticketsStore || []);
+	let todos: Todo[] = $derived($todosStore || []);
 
 	// Kanban columns
 	let todoTickets = $derived(tickets.filter((t) => t.status === 'todo'));
@@ -64,8 +64,8 @@
 				listTickets(projectId),
 				listTodos(projectId)
 			]);
-			ticketsStore.set(ticketData);
-			todosStore.set(todoData);
+			ticketsStore.set(ticketData || []);
+			todosStore.set(todoData || []);
 		} catch (err) {
 			console.error('Failed to load project:', err);
 		}

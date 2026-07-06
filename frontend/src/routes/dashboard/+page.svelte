@@ -6,21 +6,18 @@
 	import type { Project } from '$lib/api';
 
 	let user = $derived($userStore);
-	let projects: Project[] = $derived($projectsStore);
+	let projects: Project[] = $derived($projectsStore || []);
 
 	let showNewProject = $state(false);
 	let newProjectName = $state('');
 	let newProjectDesc = $state('');
 	let creating = $state(false);
 
-	onMount(async () => {
+	$effect(() => {
 		if (user) {
-			try {
-				const data = await listProjects(user.id);
-				projectsStore.set(data);
-			} catch (err) {
-				console.error('Failed to load projects:', err);
-			}
+			listProjects(user.id)
+				.then(data => projectsStore.set(data || []))
+				.catch(err => console.error('Failed to load projects:', err));
 		}
 	});
 
