@@ -1,0 +1,200 @@
+package handlers
+
+import (
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/LCmaster/NextUp/internal/db"
+	"github.com/LCmaster/NextUp/internal/ws"
+)
+
+type ticketHandler struct {
+	queries *db.Queries
+	hub     *ws.Hub
+}
+
+// RegisterTicketRoutes sets up ticket-related routes.
+func RegisterTicketRoutes(r chi.Router, queries *db.Queries, hub *ws.Hub) {
+	h := &ticketHandler{queries: queries, hub: hub}
+
+	r.Route("/tickets", func(r chi.Router) {
+		r.Post("/", h.createTicket)
+		r.Get("/", h.listTickets)
+		r.Get("/{id}", h.getTicket)
+		r.Put("/{id}", h.updateTicket)
+		r.Delete("/{id}", h.deleteTicket)
+	})
+}
+
+type createTicketRequest struct {
+	ProjectID   string `json:"project_id"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Priority    string `json:"priority,omitempty"`
+	AssigneeID  string `json:"assignee_id,omitempty"`
+}
+
+type updateTicketRequest struct {
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	Status      string `json:"status"`
+	Priority    string `json:"priority"`
+	AssigneeID  string `json:"assignee_id,omitempty"`
+}
+
+func (h *ticketHandler) createTicket(w http.ResponseWriter, r *http.Request) {
+	var req createTicketRequest
+	if err := decodeJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.ProjectID == "" || req.Title == "" {
+		respondError(w, http.StatusBadRequest, "project_id and title are required")
+		return
+	}
+
+	projectID := pgtype.UUID{}
+	if err := projectID.Scan(req.ProjectID); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid project_id format")
+		return
+	}
+
+	status := req.Status
+	if status == "" {
+		status = "todo"
+	}
+	priority := req.Priority
+	if priority == "" {
+		priority = "medium"
+	}
+
+	description := pgtype.Text{}
+	if req.Description != "" {
+		description = pgtype.Text{String: req.Description, Valid: true}
+	}
+
+	assigneeID := pgtype.UUID{}
+	if req.AssigneeID != "" {
+		if err := assigneeID.Scan(req.AssigneeID); err != nil {
+			respondError(w, http.StatusBadRequest, "Invalid assignee_id format")
+			return
+		}
+	}
+
+	ticket, err := h.queries.CreateTicket(r.Context(), db.CreateTicketParams{
+		ProjectID:   projectID,
+		Title:       req.Title,
+		Description: description,
+		Status:      status,
+		Priority:    priority,
+		AssigneeID:  assigneeID,
+	})
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to create ticket")
+		return
+	}
+
+	h.hub.BroadcastEvent("ticket.created", ticket)
+	respondJSON(w, http.StatusCreated, ticket)
+}
+
+func (h *ticketHandler) listTickets(w http.ResponseWriter, r *http.Request) {
+	projectIDStr := r.URL.Query().Get("project_id")
+	if projectIDStr == "" {
+		respondError(w, http.StatusBadRequest, "project_id query parameter required")
+		return
+	}
+
+	projectID := pgtype.UUID{}
+	if err := projectID.Scan(projectIDStr); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid project_id format")
+		return
+	}
+
+	tickets, err := h.queries.ListTicketsByProject(r.Context(), projectID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to list tickets")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, tickets)
+}
+
+func (h *ticketHandler) getTicket(w http.ResponseWriter, r *http.Request) {
+	id := pgtype.UUID{}
+	if err := id.Scan(chi.URLParam(r, "id")); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		return
+	}
+
+	ticket, err := h.queries.GetTicketByID(r.Context(), id)
+	if err != nil {
+		respondError(w, http.StatusNotFound, "Ticket not found")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, ticket)
+}
+
+func (h *ticketHandler) updateTicket(w http.ResponseWriter, r *http.Request) {
+	id := pgtype.UUID{}
+	if err := id.Scan(chi.URLParam(r, "id")); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		return
+	}
+
+	var req updateTicketRequest
+	if err := decodeJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	description := pgtype.Text{}
+	if req.Description != "" {
+		description = pgtype.Text{String: req.Description, Valid: true}
+	}
+
+	assigneeID := pgtype.UUID{}
+	if req.AssigneeID != "" {
+		if err := assigneeID.Scan(req.AssigneeID); err != nil {
+			respondError(w, http.StatusBadRequest, "Invalid assignee_id format")
+			return
+		}
+	}
+
+	ticket, err := h.queries.UpdateTicket(r.Context(), db.UpdateTicketParams{
+		ID:          id,
+		Title:       req.Title,
+		Description: description,
+		Status:      req.Status,
+		Priority:    req.Priority,
+		AssigneeID:  assigneeID,
+	})
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to update ticket")
+		return
+	}
+
+	h.hub.BroadcastEvent("ticket.updated", ticket)
+	respondJSON(w, http.StatusOK, ticket)
+}
+
+func (h *ticketHandler) deleteTicket(w http.ResponseWriter, r *http.Request) {
+	id := pgtype.UUID{}
+	if err := id.Scan(chi.URLParam(r, "id")); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		return
+	}
+
+	if err := h.queries.DeleteTicket(r.Context(), id); err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to delete ticket")
+		return
+	}
+
+	h.hub.BroadcastEvent("ticket.deleted", map[string]string{"id": chi.URLParam(r, "id")})
+	respondJSON(w, http.StatusNoContent, nil)
+}
