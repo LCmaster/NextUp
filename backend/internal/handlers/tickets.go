@@ -1,30 +1,27 @@
 package handlers
 
 import (
-	"context"
-	"encoding/json"
-	"log"
+	"errors"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/generative-ai-go/genai"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"google.golang.org/api/option"
 
 	"github.com/LCmaster/NextUp/internal/db"
+	"github.com/LCmaster/NextUp/internal/services"
 	"github.com/LCmaster/NextUp/internal/ws"
 )
 
 type ticketHandler struct {
 	queries *db.Queries
 	hub     *ws.Hub
+	svc     *services.TicketService
 }
 
 // RegisterTicketRoutes sets up ticket-related routes.
-func RegisterTicketRoutes(r chi.Router, queries *db.Queries, hub *ws.Hub) {
-	h := &ticketHandler{queries: queries, hub: hub}
+func RegisterTicketRoutes(r chi.Router, queries *db.Queries, hub *ws.Hub, svc *services.TicketService) {
+	h := &ticketHandler{queries: queries, hub: hub, svc: svc}
 
 	r.Route("/tickets", func(r chi.Router) {
 		r.Post("/", h.createTicket)
@@ -73,6 +70,7 @@ func (h *ticketHandler) createTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Defaults are handled by the database; only set when explicitly provided.
 	status := req.Status
 	if status == "" {
 		status = "todo"
@@ -152,7 +150,11 @@ func (h *ticketHandler) getTicket(w http.ResponseWriter, r *http.Request) {
 
 	ticket, err := h.queries.GetTicketByID(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusNotFound, "Ticket not found")
+		if errors.Is(err, pgx.ErrNoRows) {
+			respondError(w, http.StatusNotFound, "Ticket not found")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to fetch ticket")
 		return
 	}
 
@@ -227,6 +229,9 @@ func (h *ticketHandler) deleteTicket(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusNoContent, nil)
 }
 
+// breakdownTicket delegates to TicketService so the Gemini client is shared
+// and the HTTP request context is propagated to cancel the AI call if the
+// client disconnects.
 func (h *ticketHandler) breakdownTicket(w http.ResponseWriter, r *http.Request) {
 	id := pgtype.UUID{}
 	if err := id.Scan(chi.URLParam(r, "id")); err != nil {
@@ -234,89 +239,11 @@ func (h *ticketHandler) breakdownTicket(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	ticket, err := h.queries.GetTicketByID(r.Context(), id)
+	tickets, err := h.svc.Breakdown(r.Context(), id)
 	if err != nil {
-		respondError(w, http.StatusNotFound, "Ticket not found")
+		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		respondError(w, http.StatusInternalServerError, "GEMINI_API_KEY not configured")
-		return
-	}
-
-	ctx := context.Background()
-	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to initialize AI client")
-		return
-	}
-	defer client.Close()
-
-	model := client.GenerativeModel("gemini-flash-latest")
-	model.ResponseMIMEType = "application/json"
-
-	prompt := "Break down the following ticket into 2-5 smaller, actionable sub-tasks. " +
-		"Return ONLY a JSON array of objects with 'title' and 'description' keys.\n\n" +
-		"Ticket Title: " + ticket.Title + "\n"
-	if ticket.Description.Valid {
-		prompt += "Ticket Description: " + ticket.Description.String + "\n"
-	}
-
-	resp, err := model.GenerateContent(ctx, genai.Text(prompt))
-	if err != nil {
-		log.Printf("Gemini API error: %v", err)
-		respondError(w, http.StatusInternalServerError, "Failed to generate breakdown")
-		return
-	}
-
-	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
-		respondError(w, http.StatusInternalServerError, "No response from AI")
-		return
-	}
-
-	part := resp.Candidates[0].Content.Parts[0]
-	text, ok := part.(genai.Text)
-	if !ok {
-		respondError(w, http.StatusInternalServerError, "Invalid AI response format")
-		return
-	}
-
-	var generatedTasks []struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-	}
-
-	jsonText := strings.TrimPrefix(string(text), "```json\n")
-	jsonText = strings.TrimSuffix(jsonText, "\n```")
-
-	if err := json.Unmarshal([]byte(jsonText), &generatedTasks); err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to parse AI response")
-		return
-	}
-
-	var createdTickets []db.Ticket
-	for _, task := range generatedTasks {
-		desc := pgtype.Text{}
-		if task.Description != "" {
-			desc = pgtype.Text{String: task.Description, Valid: true}
-		}
-
-		newTicket, err := h.queries.CreateTicket(r.Context(), db.CreateTicketParams{
-			ProjectID:   ticket.ProjectID,
-			Title:       task.Title,
-			Description: desc,
-			Status:      "todo",
-			Priority:    "medium",
-			AssigneeID:  pgtype.UUID{},
-			ParentID:    id,
-		})
-		if err == nil {
-			createdTickets = append(createdTickets, newTicket)
-			h.hub.BroadcastEvent("ticket.created", newTicket)
-		}
-	}
-
-	respondJSON(w, http.StatusOK, createdTickets)
+	respondJSON(w, http.StatusOK, tickets)
 }

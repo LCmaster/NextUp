@@ -13,10 +13,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/google/generative-ai-go/genai"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/api/option"
 
 	"github.com/LCmaster/NextUp/internal/db"
 	"github.com/LCmaster/NextUp/internal/handlers"
+	"github.com/LCmaster/NextUp/internal/services"
 	"github.com/LCmaster/NextUp/internal/ws"
 )
 
@@ -51,10 +54,30 @@ func main() {
 	}
 	log.Println("Migrations applied")
 
+	// Initialize Gemini AI client once at startup.
+	// If GEMINI_API_KEY is absent the server still starts; breakdown endpoint
+	// will return a clear error rather than panicking.
+	var aiModel *genai.GenerativeModel
+	if apiKey := os.Getenv("GEMINI_API_KEY"); apiKey != "" {
+		aiClient, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+		if err != nil {
+			log.Fatalf("Failed to create Gemini client: %v", err)
+		}
+		defer aiClient.Close()
+		m := aiClient.GenerativeModel("gemini-flash-latest")
+		m.ResponseMIMEType = "application/json"
+		aiModel = m
+		log.Println("Gemini AI client initialized")
+	} else {
+		log.Println("WARNING: GEMINI_API_KEY not set — AI breakdown endpoint will be unavailable")
+	}
+
 	// Initialize dependencies
 	queries := db.New(pool)
 	hub := ws.NewHub()
 	go hub.Run()
+
+	ticketSvc := services.NewTicketService(queries, hub, aiModel)
 
 	// Build router
 	r := chi.NewRouter()
@@ -82,7 +105,7 @@ func main() {
 	r.Route("/api/v1", func(r chi.Router) {
 		handlers.RegisterUserRoutes(r, queries)
 		handlers.RegisterProjectRoutes(r, queries, hub)
-		handlers.RegisterTicketRoutes(r, queries, hub)
+		handlers.RegisterTicketRoutes(r, queries, hub, ticketSvc)
 	})
 
 	// WebSocket endpoint
