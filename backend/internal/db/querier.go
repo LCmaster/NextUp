@@ -14,22 +14,17 @@ type Querier interface {
 	CountUsers(ctx context.Context) (int64, error)
 	CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error)
 	CreateTicket(ctx context.Context, arg CreateTicketParams) (Ticket, error)
-	CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteProject(ctx context.Context, id pgtype.UUID) error
 	DeleteTicket(ctx context.Context, id pgtype.UUID) error
-	DeleteTodo(ctx context.Context, id pgtype.UUID) error
 	GetProjectByID(ctx context.Context, id pgtype.UUID) (Project, error)
 	GetTicketByID(ctx context.Context, id pgtype.UUID) (Ticket, error)
-	GetTodoByID(ctx context.Context, id pgtype.UUID) (Todo, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	ListProjectsByOwner(ctx context.Context, ownerID pgtype.UUID) ([]Project, error)
 	ListTicketsByProject(ctx context.Context, projectID pgtype.UUID) ([]Ticket, error)
-	ListTodosByProject(ctx context.Context, projectID pgtype.UUID) ([]Todo, error)
 	UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error)
 	UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Ticket, error)
-	UpdateTodo(ctx context.Context, arg UpdateTodoParams) (Todo, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 }
 

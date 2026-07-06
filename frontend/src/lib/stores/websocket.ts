@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { Ticket, Todo, Project } from '$lib/api';
+import type { Ticket, Project } from '$lib/api';
 
 export interface WsEvent {
 	type: string;
@@ -70,7 +70,6 @@ export const wsStore = createWebSocketStore();
 // --- Reactive entity stores updated by WebSocket events ---
 
 export const ticketsStore = writable<Ticket[]>([]);
-export const todosStore = writable<Todo[]>([]);
 export const projectsStore = writable<Project[]>([]);
 
 // Apply a WebSocket event to the local stores
@@ -90,21 +89,6 @@ export function applyWsEvent(event: WsEvent) {
 		case 'ticket.deleted':
 			ticketsStore.update((tickets) =>
 				tickets.filter((t) => t.id !== (payload as { id: string }).id)
-			);
-			break;
-
-		// Todos
-		case 'todo.created':
-			todosStore.update((todos) => [payload as Todo, ...todos]);
-			break;
-		case 'todo.updated':
-			todosStore.update((todos) =>
-				todos.map((t) => (t.id === (payload as Todo).id ? (payload as Todo) : t))
-			);
-			break;
-		case 'todo.deleted':
-			todosStore.update((todos) =>
-				todos.filter((t) => t.id !== (payload as { id: string }).id)
 			);
 			break;
 

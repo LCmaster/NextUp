@@ -30,15 +30,6 @@ type Ticket struct {
 	ParentID    pgtype.UUID        `json:"parent_id"`
 }
 
-type Todo struct {
-	ID          pgtype.UUID        `json:"id"`
-	ProjectID   pgtype.UUID        `json:"project_id"`
-	Title       string             `json:"title"`
-	IsCompleted bool               `json:"is_completed"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-}
-
 type User struct {
 	ID           pgtype.UUID        `json:"id"`
 	FirstName    string             `json:"first_name"`

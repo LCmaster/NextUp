@@ -52,15 +52,6 @@ export interface Ticket {
 	updated_at: string;
 }
 
-export interface Todo {
-	id: string;
-	project_id: string;
-	title: string;
-	is_completed: boolean;
-	created_at: string;
-	updated_at: string;
-}
-
 // --- Users ---
 
 export function getSetupStatus(): Promise<{ is_setup: boolean }> {
@@ -158,27 +149,3 @@ export function breakdownTicket(id: string): Promise<Ticket[]> {
 	return request('POST', `/api/v1/tickets/${id}/breakdown`);
 }
 
-// --- Todos ---
-
-export function createTodo(data: { project_id: string; title: string }): Promise<Todo> {
-	return request('POST', '/api/v1/todos', data);
-}
-
-export function listTodos(projectId: string): Promise<Todo[]> {
-	return request('GET', `/api/v1/todos?project_id=${projectId}`);
-}
-
-export function getTodo(id: string): Promise<Todo> {
-	return request('GET', `/api/v1/todos/${id}`);
-}
-
-export function updateTodo(
-	id: string,
-	data: { title: string; is_completed: boolean }
-): Promise<Todo> {
-	return request('PUT', `/api/v1/todos/${id}`, data);
-}
-
-export function deleteTodo(id: string): Promise<void> {
-	return request('DELETE', `/api/v1/todos/${id}`);
-}

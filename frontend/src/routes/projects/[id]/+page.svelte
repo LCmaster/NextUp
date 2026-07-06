@@ -1,20 +1,16 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { ticketsStore, todosStore } from '$lib/stores/websocket';
+	import { ticketsStore } from '$lib/stores/websocket';
 	import {
 		getProject,
 		listTickets,
-		listTodos,
 		createTicket,
 		updateTicket,
 		deleteTicket,
-		breakdownTicket,
-		createTodo,
-		updateTodo,
-		deleteTodo
+		breakdownTicket
 	} from '$lib/api';
-	import type { Project, Ticket, Todo } from '$lib/api';
+	import type { Project, Ticket } from '$lib/api';
 
 	const STATUSES = ['todo', 'in_progress', 'done'] as const;
 	const STATUS_LABELS: Record<string, string> = {
@@ -37,15 +33,14 @@
 	let projectId = $derived(page.params.id as string);
 	let project = $state<Project | null>(null);
 	let tickets: Ticket[] = $derived($ticketsStore || []);
-	let todos: Todo[] = $derived($todosStore || []);
+
 
 	// Kanban columns
 	let todoTickets = $derived(tickets.filter((t) => t.status === 'todo' && !t.parent_id));
 	let inProgressTickets = $derived(tickets.filter((t) => t.status === 'in_progress' && !t.parent_id));
 	let doneTickets = $derived(tickets.filter((t) => t.status === 'done' && !t.parent_id));
 
-	// Tab state
-	let activeTab = $state<'board' | 'todos'>('board');
+
 
 	// New ticket form
 	let showNewTicket = $state(false);
@@ -56,9 +51,7 @@
 	let creatingTicket = $state(false);
 	let breakingDownId = $state<string | null>(null);
 
-	// New todo form
-	let newTodoTitle = $state('');
-	let creatingTodo = $state(false);
+
 
 	// Expanded tickets
 	let expandedTickets = $state<string[]>([]);
@@ -73,12 +66,8 @@
 	onMount(async () => {
 		try {
 			project = await getProject(projectId);
-			const [ticketData, todoData] = await Promise.all([
-				listTickets(projectId),
-				listTodos(projectId)
-			]);
+			const ticketData = await listTickets(projectId);
 			ticketsStore.set(ticketData || []);
-			todosStore.set(todoData || []);
 		} catch (err) {
 			console.error('Failed to load project:', err);
 		}
@@ -141,35 +130,7 @@
 		}
 	}
 
-	async function handleCreateTodo(e: SubmitEvent) {
-		e.preventDefault();
-		if (!newTodoTitle.trim()) return;
-		creatingTodo = true;
-		try {
-			await createTodo({ project_id: projectId, title: newTodoTitle.trim() });
-			newTodoTitle = '';
-		} catch (err) {
-			console.error('Failed to create todo:', err);
-		} finally {
-			creatingTodo = false;
-		}
-	}
 
-	async function toggleTodo(todo: Todo) {
-		try {
-			await updateTodo(todo.id, { title: todo.title, is_completed: !todo.is_completed });
-		} catch (err) {
-			console.error('Failed to toggle todo:', err);
-		}
-	}
-
-	async function handleDeleteTodo(id: string) {
-		try {
-			await deleteTodo(id);
-		} catch (err) {
-			console.error('Failed to delete todo:', err);
-		}
-	}
 
 	function getColumnTickets(status: string): Ticket[] {
 		if (status === 'todo') return todoTickets;
@@ -194,30 +155,7 @@
 			</div>
 		</div>
 
-		<!-- Tabs -->
-		<div class="mb-6 flex gap-1 rounded-lg bg-surface-200/50 p-1 dark:bg-surface-800/50" style="width: fit-content;">
-			<button
-				onclick={() => (activeTab = 'board')}
-				class="rounded-md px-4 py-2 text-sm font-medium transition-all
-					{activeTab === 'board'
-					? 'bg-white text-surface-900 shadow-sm dark:bg-surface-700 dark:text-white'
-					: 'text-surface-700/60 hover:text-surface-900 dark:text-surface-200/40 dark:hover:text-white'}"
-			>
-				Board
-			</button>
-			<button
-				onclick={() => (activeTab = 'todos')}
-				class="rounded-md px-4 py-2 text-sm font-medium transition-all
-					{activeTab === 'todos'
-					? 'bg-white text-surface-900 shadow-sm dark:bg-surface-700 dark:text-white'
-					: 'text-surface-700/60 hover:text-surface-900 dark:text-surface-200/40 dark:hover:text-white'}"
-			>
-				To-Do List
-			</button>
-		</div>
-
-		<!-- Board Tab -->
-		{#if activeTab === 'board'}
+		<!-- Board -->
 			<div class="mb-4">
 				<button
 					onclick={() => { newTicketParentId = null; showNewTicket = !showNewTicket; }}
@@ -381,70 +319,7 @@
 					</div>
 				{/each}
 			</div>
-		{/if}
 
-		<!-- Todos Tab -->
-		{#if activeTab === 'todos'}
-			<form onsubmit={handleCreateTodo} class="mb-6 flex gap-3">
-				<input
-					type="text"
-					bind:value={newTodoTitle}
-					placeholder="Add a new to-do..."
-					required
-					class="flex-1 rounded-lg border border-surface-200 bg-white px-3.5 py-2.5 text-sm text-surface-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-800 dark:text-white"
-				/>
-				<button
-					type="submit"
-					disabled={creatingTodo}
-					class="rounded-lg bg-primary-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-600 disabled:opacity-50"
-				>
-					Add
-				</button>
-			</form>
-
-			{#if todos.length === 0}
-				<div class="rounded-xl border border-dashed border-surface-200 py-12 text-center dark:border-surface-800">
-					<p class="text-sm text-surface-700/60 dark:text-surface-200/40">No to-dos yet. Add one above!</p>
-				</div>
-			{:else}
-				<div class="space-y-2">
-					{#each todos as todo (todo.id)}
-						<div class="group flex items-center gap-3 rounded-lg border border-surface-200/60 bg-white px-4 py-3 transition-all hover:shadow-sm dark:border-surface-800 dark:bg-surface-900">
-							<button
-								onclick={() => toggleTodo(todo)}
-								class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 transition-colors
-									{todo.is_completed
-									? 'border-primary-500 bg-primary-500 text-white'
-									: 'border-surface-200 hover:border-primary-400 dark:border-surface-700'}"
-							>
-								{#if todo.is_completed}
-									<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-										<path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-									</svg>
-								{/if}
-							</button>
-							<span
-								class="flex-1 text-sm transition-colors
-									{todo.is_completed
-									? 'text-surface-700/40 line-through dark:text-surface-200/30'
-									: 'text-surface-900 dark:text-white'}"
-							>
-								{todo.title}
-							</span>
-							<button
-								onclick={() => handleDeleteTodo(todo.id)}
-								class="rounded p-1 text-surface-700/20 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:text-surface-200/20 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-								aria-label="Delete todo"
-							>
-								<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-								</svg>
-							</button>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		{/if}
 	</div>
 {:else}
 	<div class="flex min-h-[50vh] items-center justify-center">

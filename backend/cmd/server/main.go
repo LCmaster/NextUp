@@ -83,7 +83,6 @@ func main() {
 		handlers.RegisterUserRoutes(r, queries)
 		handlers.RegisterProjectRoutes(r, queries, hub)
 		handlers.RegisterTicketRoutes(r, queries, hub)
-		handlers.RegisterTodoRoutes(r, queries, hub)
 	})
 
 	// WebSocket endpoint
