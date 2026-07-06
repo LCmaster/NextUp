@@ -26,6 +26,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       PORT: ${BACKEND_PORT}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     depends_on:
       db:
         condition: service_healthy
