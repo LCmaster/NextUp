@@ -60,6 +60,16 @@
 	let newTodoTitle = $state('');
 	let creatingTodo = $state(false);
 
+	// Expanded tickets
+	let expandedTickets = $state<string[]>([]);
+	function toggleTicketExpanded(id: string) {
+		if (expandedTickets.includes(id)) {
+			expandedTickets = expandedTickets.filter((t) => t !== id);
+		} else {
+			expandedTickets = [...expandedTickets, id];
+		}
+	}
+
 	onMount(async () => {
 		try {
 			project = await getProject(projectId);
@@ -269,12 +279,16 @@
 			{/if}
 
 			{#snippet ticketCard(ticket: Ticket, depth: number)}
-				<div class="group relative rounded-lg border bg-white p-4 shadow-sm transition-all dark:bg-surface-850
+				<!-- svelte-ignore a11y_click_events_have_key_events -->
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div 
+					onclick={(e) => { e.stopPropagation(); toggleTicketExpanded(ticket.id); }}
+					class="group cursor-pointer relative rounded-lg border bg-white p-4 shadow-sm transition-all dark:bg-surface-850
 					{depth > 0 ? 'ml-6 mt-3 border-l-4 border-l-primary-400 border-y-surface-200/60 border-r-surface-200/60 dark:border-y-surface-800 dark:border-r-surface-800' : 'border-surface-200/60 hover:shadow-md dark:border-surface-800'}">
 					<div class="mb-2 flex items-start justify-between">
 						<h4 class="text-sm font-medium text-surface-900 dark:text-white">{ticket.title}</h4>
 						<button
-							onclick={() => handleDeleteTicket(ticket.id)}
+							onclick={(e) => { e.stopPropagation(); handleDeleteTicket(ticket.id); }}
 							class="rounded p-1 text-surface-700/20 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:text-surface-200/20 dark:hover:bg-red-900/20 dark:hover:text-red-400"
 							aria-label="Delete ticket"
 						>
@@ -284,7 +298,7 @@
 						</button>
 					</div>
 					{#if ticket.description}
-						<p class="mb-3 line-clamp-2 text-xs text-surface-700/50 dark:text-surface-200/30">{ticket.description}</p>
+						<p class="mb-3 text-xs text-surface-700/50 dark:text-surface-200/30 whitespace-pre-wrap break-words {expandedTickets.includes(ticket.id) ? '' : 'line-clamp-2'}">{ticket.description}</p>
 					{/if}
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
@@ -293,7 +307,7 @@
 							</span>
 							{#if depth < 3}
 								<button 
-									onclick={() => { newTicketParentId = ticket.id; showNewTicket = true; window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+									onclick={(e) => { e.stopPropagation(); newTicketParentId = ticket.id; showNewTicket = true; window.scrollTo({ top: 0, behavior: 'smooth' }); }}
 									class="rounded px-1.5 py-0.5 text-[10px] font-medium text-surface-700/60 transition-colors hover:bg-surface-200 hover:text-surface-900 dark:text-surface-200/40 dark:hover:bg-surface-800 dark:hover:text-white"
 									title="Add Sub-task"
 								>
@@ -301,7 +315,7 @@
 								</button>
 								<button
 									type="button"
-									onclick={() => handleBreakdown(ticket.id)}
+									onclick={(e) => { e.stopPropagation(); handleBreakdown(ticket.id); }}
 									disabled={breakingDownId === ticket.id}
 									class="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-purple-600/80 transition-colors hover:bg-purple-50 hover:text-purple-700 dark:text-purple-400/80 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 disabled:opacity-50"
 									title="AI Breakdown"
@@ -317,7 +331,7 @@
 						<div class="flex gap-1">
 							{#if ticket.status !== 'todo'}
 								<button
-									onclick={() => moveTicket(ticket, ticket.status === 'done' ? 'in_progress' : 'todo')}
+									onclick={(e) => { e.stopPropagation(); moveTicket(ticket, ticket.status === 'done' ? 'in_progress' : 'todo'); }}
 									class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
 									title="Move left"
 								>
@@ -328,7 +342,7 @@
 							{/if}
 							{#if ticket.status !== 'done'}
 								<button
-									onclick={() => moveTicket(ticket, ticket.status === 'todo' ? 'in_progress' : 'done')}
+									onclick={(e) => { e.stopPropagation(); moveTicket(ticket, ticket.status === 'todo' ? 'in_progress' : 'done'); }}
 									class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
 									title="Move right"
 								>
