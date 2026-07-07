@@ -12,6 +12,7 @@ import (
 
 	"github.com/LCmaster/NextUp/internal/db"
 	"github.com/LCmaster/NextUp/internal/handlers"
+	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
 	"github.com/LCmaster/NextUp/internal/services"
 	"github.com/LCmaster/NextUp/internal/ws"
 )
@@ -154,6 +155,7 @@ func newTestRouter(q *MockQuerier) http.Handler {
 	// channel (256) absorbs events without blocking in tests.
 	svc := services.NewTicketService(q, hub, nil) // AI disabled in handler tests
 	r := chi.NewRouter()
+	r.Use(apimiddleware.Auth([]byte("secret")))
 	r.Route("/api/v1", func(r chi.Router) {
 		handlers.RegisterUserRoutes(r, q, []byte("secret"))
 		handlers.RegisterProjectRoutes(r, q, hub)
@@ -188,7 +190,7 @@ func (m *MockQuerier) GetProjectInviteByToken(ctx context.Context, token string)
 }
 func (m *MockQuerier) GetProjectMember(ctx context.Context, arg db.GetProjectMemberParams) (db.ProjectMember, error) {
 	if m.GetProjectMemberFn != nil { return m.GetProjectMemberFn(ctx, arg) }
-	return db.ProjectMember{}, nil 
+	return db.ProjectMember{Role: "owner"}, nil 
 }
 func (m *MockQuerier) ListProjectInvites(ctx context.Context, projectID pgtype.UUID) ([]db.ProjectInvite, error) {
 	if m.ListProjectInvitesFn != nil { return m.ListProjectInvitesFn(ctx, projectID) }
