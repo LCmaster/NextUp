@@ -6,19 +6,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/LCmaster/NextUp/internal/db"
 	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
-	"github.com/LCmaster/NextUp/internal/ws"
+	"github.com/LCmaster/NextUp/internal/services"
 )
 
 type projectHandler struct {
-	queries db.Querier
-	hub     *ws.Hub
+	svc *services.ProjectService
 }
 
 // RegisterProjectRoutes sets up project-related routes.
-func RegisterProjectRoutes(r chi.Router, queries db.Querier, hub *ws.Hub) {
-	h := &projectHandler{queries: queries, hub: hub}
+func RegisterProjectRoutes(r chi.Router, svc *services.ProjectService) {
+	h := &projectHandler{svc: svc}
 
 	r.Route("/projects", func(r chi.Router) {
 		r.Post("/", h.createProject)
@@ -63,32 +61,12 @@ func (h *projectHandler) createProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	description := pgtype.Text{}
-	if req.Description != "" {
-		description = pgtype.Text{String: req.Description, Valid: true}
-	}
-
-	project, err := h.queries.CreateProject(r.Context(), db.CreateProjectParams{
-		Name:        req.Name,
-		Description: description,
-		OwnerID:     userID,
-	})
+	project, err := h.svc.CreateProject(r.Context(), req.Name, req.Description, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to create project")
 		return
 	}
 
-	// Add creator as owner
-	_, err = h.queries.AddProjectMember(r.Context(), db.AddProjectMemberParams{
-		ProjectID: project.ID,
-		UserID:    userID,
-		Role:      "owner",
-	})
-	if err != nil {
-		// Log error, but project was created
-	}
-
-	h.hub.BroadcastEvent("project.created", project)
 	respondJSON(w, http.StatusCreated, project)
 }
 
@@ -105,7 +83,7 @@ func (h *projectHandler) listProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projects, err := h.queries.ListProjectsByMember(r.Context(), userID)
+	projects, err := h.svc.ListProjects(r.Context(), userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list projects")
 		return
@@ -125,17 +103,13 @@ func (h *projectHandler) getProject(w http.ResponseWriter, r *http.Request) {
 	userID := pgtype.UUID{}
 	userID.Scan(userIDStr)
 
-	_, err := h.queries.GetProjectMember(r.Context(), db.GetProjectMemberParams{
-		ProjectID: id,
-		UserID:    userID,
-	})
+	project, err := h.svc.GetProject(r.Context(), id, userID)
 	if err != nil {
-		respondError(w, http.StatusForbidden, "Forbidden")
-		return
-	}
-
-	project, err := h.queries.GetProjectByID(r.Context(), id)
-	if err != nil {
+		// Note: The service might return forbidden or not found, but we map it loosely here
+		if err.Error() == "forbidden: forbidden" || err.Error() == "forbidden: no rows in result set" {
+			respondError(w, http.StatusForbidden, "Forbidden")
+			return
+		}
 		respondError(w, http.StatusNotFound, "Project not found")
 		return
 	}
@@ -154,37 +128,22 @@ func (h *projectHandler) updateProject(w http.ResponseWriter, r *http.Request) {
 	userID := pgtype.UUID{}
 	userID.Scan(userIDStr)
 
-	member, err := h.queries.GetProjectMember(r.Context(), db.GetProjectMemberParams{
-		ProjectID: id,
-		UserID:    userID,
-	})
-	if err != nil || (member.Role != "owner" && member.Role != "admin") {
-		respondError(w, http.StatusForbidden, "Forbidden")
-		return
-	}
-
 	var req updateProjectRequest
 	if err := decodeJSON(r, &req); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	description := pgtype.Text{}
-	if req.Description != "" {
-		description = pgtype.Text{String: req.Description, Valid: true}
-	}
-
-	project, err := h.queries.UpdateProject(r.Context(), db.UpdateProjectParams{
-		ID:          id,
-		Name:        req.Name,
-		Description: description,
-	})
+	project, err := h.svc.UpdateProject(r.Context(), id, userID, req.Name, req.Description)
 	if err != nil {
+		if err.Error() == "forbidden: insufficient permissions" {
+			respondError(w, http.StatusForbidden, "Forbidden")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "Failed to update project")
 		return
 	}
 
-	h.hub.BroadcastEvent("project.updated", project)
 	respondJSON(w, http.StatusOK, project)
 }
 
@@ -199,20 +158,14 @@ func (h *projectHandler) deleteProject(w http.ResponseWriter, r *http.Request) {
 	userID := pgtype.UUID{}
 	userID.Scan(userIDStr)
 
-	member, err := h.queries.GetProjectMember(r.Context(), db.GetProjectMemberParams{
-		ProjectID: id,
-		UserID:    userID,
-	})
-	if err != nil || member.Role != "owner" {
-		respondError(w, http.StatusForbidden, "Forbidden: Only owner can delete")
-		return
-	}
-
-	if err := h.queries.DeleteProject(r.Context(), id); err != nil {
+	if err := h.svc.DeleteProject(r.Context(), id, userID); err != nil {
+		if err.Error() == "forbidden: only owner can delete" {
+			respondError(w, http.StatusForbidden, "Forbidden: Only owner can delete")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "Failed to delete project")
 		return
 	}
 
-	h.hub.BroadcastEvent("project.deleted", map[string]string{"id": chi.URLParam(r, "id")})
 	respondJSON(w, http.StatusNoContent, nil)
 }

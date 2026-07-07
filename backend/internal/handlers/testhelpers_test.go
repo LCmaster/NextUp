@@ -158,7 +158,8 @@ func newTestRouter(q *MockQuerier) http.Handler {
 	r.Use(apimiddleware.Auth([]byte("secret")))
 	r.Route("/api/v1", func(r chi.Router) {
 		handlers.RegisterUserRoutes(r, q, []byte("secret"))
-		handlers.RegisterProjectRoutes(r, q, hub)
+		projectSvc := services.NewProjectService(q, hub)
+		handlers.RegisterProjectRoutes(r, projectSvc)
 		handlers.RegisterProjectMemberRoutes(r, q, hub)
 		handlers.RegisterTicketRoutes(r, q, hub, svc)
 	})
