@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { Ticket, Project } from '$lib/api';
+import type { Ticket, Project, ProjectMember } from '$lib/api';
 
 export interface WsEvent {
 	type: string;
@@ -71,6 +71,7 @@ export const wsStore = createWebSocketStore();
 
 export const ticketsStore = writable<Ticket[]>([]);
 export const projectsStore = writable<Project[]>([]);
+export const projectMembersStore = writable<Record<string, ProjectMember[]>>({});
 
 // Apply a WebSocket event to the local stores
 export function applyWsEvent(event: WsEvent) {
@@ -108,5 +109,37 @@ export function applyWsEvent(event: WsEvent) {
 				projects.filter((p) => p.id !== (payload as { id: string }).id)
 			);
 			break;
+
+		// Members
+		case 'project.member.added': {
+			const m = payload as ProjectMember;
+			projectMembersStore.update(s => {
+				const members = s[m.project_id] || [];
+				return { ...s, [m.project_id]: [...members, m] };
+			});
+			break;
+		}
+		case 'project.member.updated': {
+			const m = payload as ProjectMember;
+			projectMembersStore.update(s => {
+				const members = s[m.project_id] || [];
+				return {
+					...s,
+					[m.project_id]: members.map(x => x.user_id === m.user_id ? m : x)
+				};
+			});
+			break;
+		}
+		case 'project.member.removed': {
+			const removed = payload as { project_id: string; user_id: string };
+			projectMembersStore.update(s => {
+				const members = s[removed.project_id] || [];
+				return {
+					...s,
+					[removed.project_id]: members.filter(x => x.user_id !== removed.user_id)
+				};
+			});
+			break;
+		}
 	}
 }
