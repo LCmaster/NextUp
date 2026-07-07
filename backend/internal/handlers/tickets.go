@@ -181,7 +181,9 @@ func (h *ticketHandler) listTickets(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "Failed to list tickets")
 		return
 	}
-
+	if tickets == nil {
+		tickets = make([]db.Ticket, 0)
+	}
 	respondJSON(w, http.StatusOK, tickets)
 }
 
@@ -343,6 +345,8 @@ func (h *ticketHandler) breakdownTicket(w http.ResponseWriter, r *http.Request) 
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
+	if tickets == nil {
+		tickets = make([]db.Ticket, 0)
+	}
 	respondJSON(w, http.StatusOK, tickets)
 }

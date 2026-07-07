@@ -177,6 +177,9 @@ func (h *userHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "Failed to list users")
 		return
 	}
+	if users == nil {
+		users = make([]db.ListUsersRow, 0)
+	}
 	respondJSON(w, http.StatusOK, users)
 }
 

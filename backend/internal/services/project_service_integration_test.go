@@ -66,7 +66,7 @@ CREATE TABLE project_members (
 
 	queries := db.New(pool)
 	hub := ws.NewHub()
-	ps := services.NewProjectService(queries, hub)
+	ps := services.NewProjectService(queries, pool, hub)
 
 	// Create a user first
 	user, err := queries.CreateUser(ctx, db.CreateUserParams{
@@ -86,6 +86,19 @@ CREATE TABLE project_members (
 	}
 	if proj.Name != "Integration Project" {
 		t.Errorf("expected Integration Project, got %s", proj.Name)
+	}
+
+	// 2b. Assert owner was inserted into project_members inside the same transaction
+	var memberRole string
+	err = pool.QueryRow(ctx,
+		"SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2",
+		proj.ID, user.ID,
+	).Scan(&memberRole)
+	if err != nil {
+		t.Fatalf("project_members row not found after CreateProject: %v", err)
+	}
+	if memberRole != "owner" {
+		t.Errorf("expected role 'owner', got %q", memberRole)
 	}
 
 	// 3. Test ListProjects (should return 1)

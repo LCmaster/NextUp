@@ -4,7 +4,7 @@ import type { User } from '$lib/api';
 import { getProfile, logout as apiLogout } from '$lib/api';
 
 function createUserStore() {
-	const { subscribe, set } = writable<User | null>(null);
+	const { subscribe, set } = writable<User | null | undefined>(undefined);
 
 	return {
 		subscribe,

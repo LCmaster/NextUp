@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/LCmaster/NextUp/internal/db"
 	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
 	"github.com/LCmaster/NextUp/internal/services"
 )
@@ -88,7 +89,9 @@ func (h *projectHandler) listProjects(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "Failed to list projects")
 		return
 	}
-
+	if projects == nil {
+		projects = make([]db.Project, 0)
+	}
 	respondJSON(w, http.StatusOK, projects)
 }
 

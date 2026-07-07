@@ -5,19 +5,28 @@
 
 	let loading = $state(true);
 
-	onMount(async () => {
-		try {
-			// Check if user is already logged in
-			const user = $userStore;
-			if (user) {
-				goto('/dashboard');
-			} else {
-				goto('/login');
+	onMount(() => {
+		const unsub = userStore.subscribe((user) => {
+			if (user !== undefined) {
+				if (user) {
+					goto('/dashboard');
+				} else {
+					goto('/login');
+				}
 			}
-		} catch {
-			// If API is not reachable, show a fallback
-			loading = false;
-		}
+		});
+		
+		// If API is not reachable after a timeout, show fallback
+		const timeout = setTimeout(() => {
+			if ($userStore === undefined) {
+				loading = false;
+			}
+		}, 3000);
+
+		return () => {
+			unsub();
+			clearTimeout(timeout);
+		};
 	});
 </script>
 

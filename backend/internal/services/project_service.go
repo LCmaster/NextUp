@@ -3,20 +3,32 @@ package services
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/LCmaster/NextUp/internal/db"
 	"github.com/LCmaster/NextUp/internal/ws"
 )
 
+// Beginner is satisfied by *pgxpool.Pool and *pgx.Conn — it is used to open
+// a transaction without importing pgxpool directly in this package.
+type Beginner interface {
+	Begin(ctx context.Context) (pgx.Tx, error)
+}
+
 type ProjectService struct {
 	queries db.Querier
+	pool    Beginner
 	hub     *ws.Hub
 }
 
-func NewProjectService(queries db.Querier, hub *ws.Hub) *ProjectService {
-	return &ProjectService{queries: queries, hub: hub}
+// NewProjectService creates a ProjectService. pool is used exclusively to open
+// transactions for atomic operations (e.g. CreateProject); pass nil in unit
+// tests that only exercise non-transactional paths.
+func NewProjectService(queries db.Querier, pool Beginner, hub *ws.Hub) *ProjectService {
+	return &ProjectService{queries: queries, pool: pool, hub: hub}
 }
 
 func (s *ProjectService) CreateProject(ctx context.Context, name, description string, userID pgtype.UUID) (db.Project, error) {
@@ -25,7 +37,21 @@ func (s *ProjectService) CreateProject(ctx context.Context, name, description st
 		desc = pgtype.Text{String: description, Valid: true}
 	}
 
-	project, err := s.queries.CreateProject(ctx, db.CreateProjectParams{
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return db.Project{}, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				slog.Error("failed to rollback CreateProject transaction", "error", rbErr)
+			}
+		}
+	}()
+
+	qtx := db.New(tx)
+
+	project, err := qtx.CreateProject(ctx, db.CreateProjectParams{
 		Name:        name,
 		Description: desc,
 		OwnerID:     userID,
@@ -34,14 +60,17 @@ func (s *ProjectService) CreateProject(ctx context.Context, name, description st
 		return db.Project{}, fmt.Errorf("failed to create project: %w", err)
 	}
 
-	// Add creator as owner
-	_, err = s.queries.AddProjectMember(ctx, db.AddProjectMemberParams{
+	_, err = qtx.AddProjectMember(ctx, db.AddProjectMemberParams{
 		ProjectID: project.ID,
 		UserID:    userID,
 		Role:      "owner",
 	})
 	if err != nil {
-		// Log error, but project was created
+		return db.Project{}, fmt.Errorf("failed to add project owner: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return db.Project{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	s.hub.BroadcastEvent("project.created", project)
