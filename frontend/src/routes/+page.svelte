@@ -1,19 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { getSetupStatus } from '$lib/api';
 	import { userStore } from '$lib/stores/user';
 
 	let loading = $state(true);
 
 	onMount(async () => {
 		try {
-			const { is_setup } = await getSetupStatus();
-			if (!is_setup) {
-				goto('/setup');
-				return;
-			}
-
 			// Check if user is already logged in
 			const user = $userStore;
 			if (user) {

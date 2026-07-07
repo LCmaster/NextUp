@@ -81,6 +81,13 @@
 					{loading ? 'Signing In...' : 'Sign In'}
 				</button>
 			</form>
+			
+			<div class="mt-6 text-center text-sm text-surface-700 dark:text-surface-200">
+				Don't have an account?
+				<a href="/register" class="font-semibold text-primary-600 hover:text-primary-500 hover:underline dark:text-primary-400">
+					Sign up
+				</a>
+			</div>
 		</div>
 	</div>
 </div>
