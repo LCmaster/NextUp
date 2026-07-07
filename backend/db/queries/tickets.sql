@@ -1,13 +1,21 @@
 -- name: CreateTicket :one
-INSERT INTO tickets (project_id, title, description, status, priority, assignee_id, parent_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO tickets (project_id, title, description, status, priority, assignee_id, parent_id, creator_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: GetTicketByID :one
 SELECT * FROM tickets WHERE id = $1;
 
--- name: ListTicketsByProject :many
-SELECT * FROM tickets WHERE project_id = $1 ORDER BY created_at DESC;
+-- name: ListTicketsByProjectAndUser :many
+SELECT t.* FROM tickets t
+JOIN project_members pm ON t.project_id = pm.project_id
+WHERE t.project_id = $1 AND pm.user_id = $2
+  AND (
+    pm.role IN ('admin', 'owner')
+    OR t.assignee_id = $2
+    OR (t.creator_id = $2 AND t.assignee_id IS NULL)
+  )
+ORDER BY t.created_at DESC;
 
 -- name: UpdateTicket :one
 UPDATE tickets

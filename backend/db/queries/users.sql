@@ -21,3 +21,6 @@ RETURNING *;
 
 -- name: CountUsers :one
 SELECT COUNT(*) FROM users;
+
+-- name: ListUsers :many
+SELECT id, first_name, last_name, email, github_link, created_at, updated_at FROM users ORDER BY created_at DESC;
