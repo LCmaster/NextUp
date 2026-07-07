@@ -1,9 +1,11 @@
 package middleware
 
 import (
+	"net"
 	"net/http"
 	"sync"
 
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"golang.org/x/time/rate"
 )
 
@@ -44,11 +46,16 @@ func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
 func RateLimit(limiter *IPRateLimiter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Extract IP from request
-			// In production behind a proxy, you'd look at X-Forwarded-For or similar.
-			ip := r.RemoteAddr
-			if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-				ip = forwarded
+			// Extract IP from request using chi's GetClientIP which is populated by ClientIP middleware
+			ip := chimiddleware.GetClientIP(r.Context())
+			if ip == "" {
+				// Fallback if the ClientIP middleware wasn't run
+				fallbackIP, _, err := net.SplitHostPort(r.RemoteAddr)
+				if err != nil {
+					ip = r.RemoteAddr
+				} else {
+					ip = fallbackIP
+				}
 			}
 
 			if !limiter.GetLimiter(ip).Allow() {

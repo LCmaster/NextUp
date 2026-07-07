@@ -31,25 +31,25 @@ func main() {
 	slog.SetDefault(logger)
 
 	// Read config from env
-	port := os.Getenv("PORT")
-	if port == "" {
+	port, ok := os.LookupEnv("PORT")
+	if !ok {
 		port = "8080"
 	}
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
+	databaseURL, ok := os.LookupEnv("DATABASE_URL")
+	if !ok {
 		slog.Error("DATABASE_URL environment variable is required")
 		os.Exit(1)
 	}
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
+	jwtSecret, ok := os.LookupEnv("JWT_SECRET")
+	if !ok {
 		slog.Error("JWT_SECRET environment variable is required")
 		os.Exit(1)
 	}
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
+	frontendURL, ok := os.LookupEnv("FRONTEND_URL")
+	if !ok {
 		frontendURL = "http://localhost:5173"
 	}
-	
+
 	// Configure Mailer
 	var m mailer.Mailer
 	smtpHost := os.Getenv("SMTP_HOST")
@@ -92,7 +92,7 @@ func main() {
 	// If GEMINI_API_KEY is absent the server still starts; breakdown endpoint
 	// will return a clear error rather than panicking.
 	var aiModel *genai.GenerativeModel
-	if apiKey := os.Getenv("GEMINI_API_KEY"); apiKey != "" {
+	if apiKey, ok := os.LookupEnv("GEMINI_API_KEY"); ok && apiKey != "" {
 		aiClient, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 		if err != nil {
 			slog.Error("Failed to create Gemini client", "error", err)
@@ -122,7 +122,7 @@ func main() {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
-	r.Use(chimiddleware.RealIP)
+	r.Use(chimiddleware.ClientIPFromRemoteAddr)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:80", "http://localhost"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
