@@ -35,9 +35,30 @@ export interface Project {
 	id: string;
 	name: string;
 	description: string | null;
-	owner_id: string;
+	owner_id: string; // Deprecated conceptually, but still exists on schema for now
 	created_at: string;
 	updated_at: string;
+}
+
+export interface ProjectMember {
+	project_id: string;
+	user_id: string;
+	role: 'owner' | 'admin' | 'member';
+	created_at: string;
+	// Joined fields from users table
+	first_name?: string;
+	last_name?: string;
+	email?: string;
+}
+
+export interface ProjectInvite {
+	id: string;
+	project_id: string;
+	email: string;
+	token: string;
+	role: 'admin' | 'member';
+	created_at: string;
+	expires_at: string;
 }
 
 export interface Ticket {
@@ -49,6 +70,7 @@ export interface Ticket {
 	priority: string;
 	assignee_id: string | null;
 	parent_id: string | null;
+	creator_id: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -59,14 +81,14 @@ export function getSetupStatus(): Promise<{ is_setup: boolean }> {
 	return request('GET', '/api/v1/users/setup-status');
 }
 
-export function setupAccount(data: {
+export function registerAccount(data: {
 	first_name: string;
 	last_name: string;
 	email: string;
 	password: string;
 	github_link?: string;
 }): Promise<User> {
-	return request('POST', '/api/v1/users/setup', data);
+	return request('POST', '/api/v1/users/register', data);
 }
 
 export function login(data: { email: string; password: string }): Promise<User> {
@@ -88,18 +110,21 @@ export function logout(): Promise<{ message: string }> {
 	return request('POST', '/api/v1/users/logout');
 }
 
+export function listUsers(): Promise<User[]> {
+	return request('GET', '/api/v1/users');
+}
+
 // --- Projects ---
 
 export function createProject(data: {
 	name: string;
 	description?: string;
-	owner_id: string;
 }): Promise<Project> {
 	return request('POST', '/api/v1/projects', data);
 }
 
-export function listProjects(ownerId: string): Promise<Project[]> {
-	return request('GET', `/api/v1/projects?owner_id=${ownerId}`);
+export function listProjects(): Promise<Project[]> {
+	return request('GET', '/api/v1/projects');
 }
 
 export function getProject(id: string): Promise<Project> {
@@ -115,6 +140,40 @@ export function updateProject(
 
 export function deleteProject(id: string): Promise<void> {
 	return request('DELETE', `/api/v1/projects/${id}`);
+}
+
+// --- Project Members & Invites ---
+
+export function listProjectMembers(projectId: string): Promise<ProjectMember[]> {
+	return request('GET', `/api/v1/projects/${projectId}/members`);
+}
+
+export function updateProjectMemberRole(projectId: string, userId: string, role: string): Promise<ProjectMember> {
+	return request('PUT', `/api/v1/projects/${projectId}/members/${userId}`, { role });
+}
+
+export function removeProjectMember(projectId: string, userId: string): Promise<void> {
+	return request('DELETE', `/api/v1/projects/${projectId}/members/${userId}`);
+}
+
+export function transferOwnership(projectId: string, newOwnerId: string): Promise<{ message: string }> {
+	return request('POST', `/api/v1/projects/${projectId}/transfer-ownership`, { new_owner_id: newOwnerId });
+}
+
+export function listProjectInvites(projectId: string): Promise<ProjectInvite[]> {
+	return request('GET', `/api/v1/projects/${projectId}/invites`);
+}
+
+export function createProjectInvite(projectId: string, email: string, role: string): Promise<ProjectInvite> {
+	return request('POST', `/api/v1/projects/${projectId}/invites`, { email, role });
+}
+
+export function deleteProjectInvite(projectId: string, inviteId: string): Promise<void> {
+	return request('DELETE', `/api/v1/projects/${projectId}/invites/${inviteId}`);
+}
+
+export function acceptProjectInvite(token: string): Promise<ProjectMember> {
+	return request('POST', `/api/v1/invites/${token}/accept`);
 }
 
 // --- Tickets ---
