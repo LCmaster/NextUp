@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/LCmaster/NextUp/internal/db"
@@ -13,6 +15,20 @@ import (
 	"github.com/LCmaster/NextUp/internal/services"
 	"github.com/LCmaster/NextUp/internal/ws"
 )
+
+// ── Auth Helper ───────────────────────────────────────────────────────────────
+
+func addAuthCookie(req *http.Request, userID string) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(time.Hour).Unix(),
+	})
+	tokenString, _ := token.SignedString([]byte("secret"))
+	req.AddCookie(&http.Cookie{
+		Name:  "nextup_session",
+		Value: tokenString,
+	})
+}
 
 // ── MockQuerier ───────────────────────────────────────────────────────────────
 
@@ -29,11 +45,23 @@ type MockQuerier struct {
 	GetTicketByIDFn       func(ctx context.Context, id pgtype.UUID) (db.Ticket, error)
 	GetUserByEmailFn      func(ctx context.Context, email string) (db.User, error)
 	GetUserByIDFn         func(ctx context.Context, id pgtype.UUID) (db.User, error)
-	ListProjectsByOwnerFn func(ctx context.Context, ownerID pgtype.UUID) ([]db.Project, error)
-	ListTicketsByProjectFn func(ctx context.Context, projectID pgtype.UUID) ([]db.Ticket, error)
-	UpdateProjectFn       func(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error)
-	UpdateTicketFn        func(ctx context.Context, arg db.UpdateTicketParams) (db.Ticket, error)
-	UpdateUserFn          func(ctx context.Context, arg db.UpdateUserParams) (db.User, error)
+	ListProjectsByMemberFn        func(ctx context.Context, userID pgtype.UUID) ([]db.Project, error)
+	ListTicketsByProjectAndUserFn func(ctx context.Context, arg db.ListTicketsByProjectAndUserParams) ([]db.Ticket, error)
+	UpdateProjectFn               func(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error)
+	UpdateTicketFn                func(ctx context.Context, arg db.UpdateTicketParams) (db.Ticket, error)
+	UpdateUserFn                  func(ctx context.Context, arg db.UpdateUserParams) (db.User, error)
+	
+	// Project Members & Invites
+	AddProjectMemberFn        func(ctx context.Context, arg db.AddProjectMemberParams) (db.ProjectMember, error)
+	CreateProjectInviteFn     func(ctx context.Context, arg db.CreateProjectInviteParams) (db.ProjectInvite, error)
+	DeleteProjectInviteFn     func(ctx context.Context, id pgtype.UUID) error
+	GetProjectInviteByTokenFn func(ctx context.Context, token string) (db.ProjectInvite, error)
+	GetProjectMemberFn        func(ctx context.Context, arg db.GetProjectMemberParams) (db.ProjectMember, error)
+	ListProjectInvitesFn      func(ctx context.Context, projectID pgtype.UUID) ([]db.ProjectInvite, error)
+	ListProjectMembersFn      func(ctx context.Context, projectID pgtype.UUID) ([]db.ListProjectMembersRow, error)
+	ListUsersFn               func(ctx context.Context) ([]db.ListUsersRow, error)
+	RemoveProjectMemberFn     func(ctx context.Context, arg db.RemoveProjectMemberParams) error
+	UpdateProjectMemberRoleFn func(ctx context.Context, arg db.UpdateProjectMemberRoleParams) (db.ProjectMember, error)
 }
 
 func (m *MockQuerier) CountUsers(ctx context.Context) (int64, error) {
@@ -96,18 +124,7 @@ func (m *MockQuerier) GetUserByID(ctx context.Context, id pgtype.UUID) (db.User,
 	}
 	return db.User{}, nil
 }
-func (m *MockQuerier) ListProjectsByOwner(ctx context.Context, ownerID pgtype.UUID) ([]db.Project, error) {
-	if m.ListProjectsByOwnerFn != nil {
-		return m.ListProjectsByOwnerFn(ctx, ownerID)
-	}
-	return nil, nil
-}
-func (m *MockQuerier) ListTicketsByProject(ctx context.Context, projectID pgtype.UUID) ([]db.Ticket, error) {
-	if m.ListTicketsByProjectFn != nil {
-		return m.ListTicketsByProjectFn(ctx, projectID)
-	}
-	return nil, nil
-}
+
 func (m *MockQuerier) UpdateProject(ctx context.Context, arg db.UpdateProjectParams) (db.Project, error) {
 	if m.UpdateProjectFn != nil {
 		return m.UpdateProjectFn(ctx, arg)
@@ -138,8 +155,9 @@ func newTestRouter(q *MockQuerier) http.Handler {
 	svc := services.NewTicketService(q, hub, nil) // AI disabled in handler tests
 	r := chi.NewRouter()
 	r.Route("/api/v1", func(r chi.Router) {
-		handlers.RegisterUserRoutes(r, q)
+		handlers.RegisterUserRoutes(r, q, []byte("secret"))
 		handlers.RegisterProjectRoutes(r, q, hub)
+		handlers.RegisterProjectMemberRoutes(r, q, hub)
 		handlers.RegisterTicketRoutes(r, q, hub, svc)
 	})
 	return r
@@ -151,4 +169,52 @@ func do(router http.Handler, req *http.Request) *httptest.ResponseRecorder {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	return rr
+}
+func (m *MockQuerier) AddProjectMember(ctx context.Context, arg db.AddProjectMemberParams) (db.ProjectMember, error) {
+	if m.AddProjectMemberFn != nil { return m.AddProjectMemberFn(ctx, arg) }
+	return db.ProjectMember{}, nil 
+}
+func (m *MockQuerier) CreateProjectInvite(ctx context.Context, arg db.CreateProjectInviteParams) (db.ProjectInvite, error) {
+	if m.CreateProjectInviteFn != nil { return m.CreateProjectInviteFn(ctx, arg) }
+	return db.ProjectInvite{}, nil 
+}
+func (m *MockQuerier) DeleteProjectInvite(ctx context.Context, id pgtype.UUID) error {
+	if m.DeleteProjectInviteFn != nil { return m.DeleteProjectInviteFn(ctx, id) }
+	return nil 
+}
+func (m *MockQuerier) GetProjectInviteByToken(ctx context.Context, token string) (db.ProjectInvite, error) {
+	if m.GetProjectInviteByTokenFn != nil { return m.GetProjectInviteByTokenFn(ctx, token) }
+	return db.ProjectInvite{}, nil 
+}
+func (m *MockQuerier) GetProjectMember(ctx context.Context, arg db.GetProjectMemberParams) (db.ProjectMember, error) {
+	if m.GetProjectMemberFn != nil { return m.GetProjectMemberFn(ctx, arg) }
+	return db.ProjectMember{}, nil 
+}
+func (m *MockQuerier) ListProjectInvites(ctx context.Context, projectID pgtype.UUID) ([]db.ProjectInvite, error) {
+	if m.ListProjectInvitesFn != nil { return m.ListProjectInvitesFn(ctx, projectID) }
+	return nil, nil 
+}
+func (m *MockQuerier) ListProjectMembers(ctx context.Context, projectID pgtype.UUID) ([]db.ListProjectMembersRow, error) {
+	if m.ListProjectMembersFn != nil { return m.ListProjectMembersFn(ctx, projectID) }
+	return nil, nil 
+}
+func (m *MockQuerier) ListProjectsByMember(ctx context.Context, userID pgtype.UUID) ([]db.Project, error) {
+	if m.ListProjectsByMemberFn != nil { return m.ListProjectsByMemberFn(ctx, userID) }
+	return nil, nil 
+}
+func (m *MockQuerier) ListTicketsByProjectAndUser(ctx context.Context, arg db.ListTicketsByProjectAndUserParams) ([]db.Ticket, error) {
+	if m.ListTicketsByProjectAndUserFn != nil { return m.ListTicketsByProjectAndUserFn(ctx, arg) }
+	return nil, nil 
+}
+func (m *MockQuerier) ListUsers(ctx context.Context) ([]db.ListUsersRow, error) {
+	if m.ListUsersFn != nil { return m.ListUsersFn(ctx) }
+	return nil, nil 
+}
+func (m *MockQuerier) RemoveProjectMember(ctx context.Context, arg db.RemoveProjectMemberParams) error {
+	if m.RemoveProjectMemberFn != nil { return m.RemoveProjectMemberFn(ctx, arg) }
+	return nil 
+}
+func (m *MockQuerier) UpdateProjectMemberRole(ctx context.Context, arg db.UpdateProjectMemberRoleParams) (db.ProjectMember, error) {
+	if m.UpdateProjectMemberRoleFn != nil { return m.UpdateProjectMemberRoleFn(ctx, arg) }
+	return db.ProjectMember{}, nil 
 }

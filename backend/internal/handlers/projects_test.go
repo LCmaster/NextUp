@@ -18,6 +18,7 @@ func TestCreateProject_Success(t *testing.T) {
 	body := `{"name":"My Project","owner_id":"` + validUUID + `"}`
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusCreated {
@@ -32,6 +33,7 @@ func TestCreateProject_MissingName(t *testing.T) {
 	body := `{"owner_id":"` + validUUID + `"}`
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusBadRequest {
@@ -48,6 +50,7 @@ func TestGetProject_Success(t *testing.T) {
 	r := newTestRouter(q)
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/projects/"+validUUID, nil)
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusOK {
@@ -63,6 +66,7 @@ func TestDeleteProject_Success(t *testing.T) {
 	r := newTestRouter(q)
 
 	req, _ := http.NewRequest(http.MethodDelete, "/api/v1/projects/"+validUUID, nil)
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusNoContent {

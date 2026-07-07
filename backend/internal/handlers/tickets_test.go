@@ -22,6 +22,7 @@ func TestCreateTicket_Success(t *testing.T) {
 	body := `{"project_id":"` + validUUID + `","title":"Fix login bug","priority":"high"}`
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/tickets", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusCreated {
@@ -36,6 +37,7 @@ func TestCreateTicket_MissingTitle(t *testing.T) {
 	body := `{"project_id":"` + validUUID + `"}`
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/tickets", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusBadRequest {
@@ -50,6 +52,7 @@ func TestCreateTicket_InvalidProjectID(t *testing.T) {
 	body := `{"project_id":"not-a-uuid","title":"Fix bug"}`
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/tickets", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusBadRequest {
@@ -66,6 +69,7 @@ func TestGetTicket_NotFound(t *testing.T) {
 	r := newTestRouter(q)
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/tickets/"+validUUID, nil)
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusNotFound {
@@ -82,6 +86,7 @@ func TestGetTicket_InternalError(t *testing.T) {
 	r := newTestRouter(q)
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/tickets/"+validUUID, nil)
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusInternalServerError {
@@ -96,6 +101,7 @@ func TestUpdateTicket_Success(t *testing.T) {
 	body := `{"title":"Updated title","status":"in_progress","priority":"medium"}`
 	req, _ := http.NewRequest(http.MethodPut, "/api/v1/tickets/"+validUUID, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusOK {
@@ -108,6 +114,7 @@ func TestDeleteTicket_Success(t *testing.T) {
 	r := newTestRouter(q)
 
 	req, _ := http.NewRequest(http.MethodDelete, "/api/v1/tickets/"+validUUID, nil)
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusNoContent {
@@ -117,7 +124,7 @@ func TestDeleteTicket_Success(t *testing.T) {
 
 func TestListTickets_ByProject(t *testing.T) {
 	q := &MockQuerier{
-		ListTicketsByProjectFn: func(_ context.Context, _ pgtype.UUID) ([]db.Ticket, error) {
+		ListTicketsByProjectAndUserFn: func(_ context.Context, _ db.ListTicketsByProjectAndUserParams) ([]db.Ticket, error) {
 			return []db.Ticket{
 				{Title: "T1", Status: "todo", Priority: "medium"},
 				{Title: "T2", Status: "done", Priority: "low"},
@@ -127,6 +134,7 @@ func TestListTickets_ByProject(t *testing.T) {
 	r := newTestRouter(q)
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/tickets?project_id="+validUUID, nil)
+	addAuthCookie(req, validUUID)
 	rr := do(r, req)
 
 	if rr.Code != http.StatusOK {
