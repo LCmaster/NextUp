@@ -15,7 +15,7 @@
 				}
 			}
 		});
-		
+
 		// If API is not reachable after a timeout, show fallback
 		const timeout = setTimeout(() => {
 			if ($userStore === undefined) {

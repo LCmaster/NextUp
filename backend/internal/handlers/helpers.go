@@ -8,7 +8,7 @@ import (
 )
 
 // respondJSON writes a JSON response with the given status code.
-func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
+func respondJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if payload != nil {
@@ -24,7 +24,7 @@ func respondError(w http.ResponseWriter, status int, message string) {
 var Validate = validator.New()
 
 // decodeJSON decodes a JSON request body into the given target and validates it.
-func decodeJSON(r *http.Request, target interface{}) error {
+func decodeJSON(r *http.Request, target any) error {
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
 		return err
