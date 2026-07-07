@@ -116,10 +116,7 @@ export function listUsers(): Promise<User[]> {
 
 // --- Projects ---
 
-export function createProject(data: {
-	name: string;
-	description?: string;
-}): Promise<Project> {
+export function createProject(data: { name: string; description?: string }): Promise<Project> {
 	return request('POST', '/api/v1/projects', data);
 }
 
@@ -148,7 +145,11 @@ export function listProjectMembers(projectId: string): Promise<ProjectMember[]> 
 	return request('GET', `/api/v1/projects/${projectId}/members`);
 }
 
-export function updateProjectMemberRole(projectId: string, userId: string, role: string): Promise<ProjectMember> {
+export function updateProjectMemberRole(
+	projectId: string,
+	userId: string,
+	role: string
+): Promise<ProjectMember> {
 	return request('PUT', `/api/v1/projects/${projectId}/members/${userId}`, { role });
 }
 
@@ -156,15 +157,24 @@ export function removeProjectMember(projectId: string, userId: string): Promise<
 	return request('DELETE', `/api/v1/projects/${projectId}/members/${userId}`);
 }
 
-export function transferOwnership(projectId: string, newOwnerId: string): Promise<{ message: string }> {
-	return request('POST', `/api/v1/projects/${projectId}/transfer-ownership`, { new_owner_id: newOwnerId });
+export function transferOwnership(
+	projectId: string,
+	newOwnerId: string
+): Promise<{ message: string }> {
+	return request('POST', `/api/v1/projects/${projectId}/transfer-ownership`, {
+		new_owner_id: newOwnerId
+	});
 }
 
 export function listProjectInvites(projectId: string): Promise<ProjectInvite[]> {
 	return request('GET', `/api/v1/projects/${projectId}/invites`);
 }
 
-export function createProjectInvite(projectId: string, email: string, role: string): Promise<ProjectInvite> {
+export function createProjectInvite(
+	projectId: string,
+	email: string,
+	role: string
+): Promise<ProjectInvite> {
 	return request('POST', `/api/v1/projects/${projectId}/invites`, { email, role });
 }
 

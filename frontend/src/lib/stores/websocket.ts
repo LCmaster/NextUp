@@ -6,10 +6,7 @@ export interface WsEvent {
 	payload: unknown;
 }
 
-const WS_BASE = (import.meta.env.PUBLIC_API_URL || 'http://localhost:8080').replace(
-	/^http/,
-	'ws'
-);
+const WS_BASE = (import.meta.env.PUBLIC_API_URL || 'http://localhost:8080').replace(/^http/, 'ws');
 
 function createWebSocketStore() {
 	let socket: WebSocket | null = null;
@@ -99,9 +96,7 @@ export function applyWsEvent(event: WsEvent) {
 			break;
 		case 'project.updated':
 			projectsStore.update((projects) =>
-				projects.map((p) =>
-					p.id === (payload as Project).id ? (payload as Project) : p
-				)
+				projects.map((p) => (p.id === (payload as Project).id ? (payload as Project) : p))
 			);
 			break;
 		case 'project.deleted':
@@ -113,7 +108,7 @@ export function applyWsEvent(event: WsEvent) {
 		// Members
 		case 'project.member.added': {
 			const m = payload as ProjectMember;
-			projectMembersStore.update(s => {
+			projectMembersStore.update((s) => {
 				const members = s[m.project_id] || [];
 				return { ...s, [m.project_id]: [...members, m] };
 			});
@@ -121,22 +116,22 @@ export function applyWsEvent(event: WsEvent) {
 		}
 		case 'project.member.updated': {
 			const m = payload as ProjectMember;
-			projectMembersStore.update(s => {
+			projectMembersStore.update((s) => {
 				const members = s[m.project_id] || [];
 				return {
 					...s,
-					[m.project_id]: members.map(x => x.user_id === m.user_id ? m : x)
+					[m.project_id]: members.map((x) => (x.user_id === m.user_id ? m : x))
 				};
 			});
 			break;
 		}
 		case 'project.member.removed': {
 			const removed = payload as { project_id: string; user_id: string };
-			projectMembersStore.update(s => {
+			projectMembersStore.update((s) => {
 				const members = s[removed.project_id] || [];
 				return {
 					...s,
-					[removed.project_id]: members.filter(x => x.user_id !== removed.user_id)
+					[removed.project_id]: members.filter((x) => x.user_id !== removed.user_id)
 				};
 			});
 			break;

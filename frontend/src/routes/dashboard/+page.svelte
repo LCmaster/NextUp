@@ -152,13 +152,23 @@
 	{#if loading}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each [1, 2, 3] as _}
-				<div class="rounded-xl border border-surface-200/60 bg-white p-6 shadow-sm dark:border-surface-800 dark:bg-surface-900">
+				<div
+					class="rounded-xl border border-surface-200/60 bg-white p-6 shadow-sm dark:border-surface-800 dark:bg-surface-900"
+				>
 					<div class="mb-3 flex items-start justify-between">
-						<div class="h-10 w-10 animate-pulse rounded-lg bg-surface-200 dark:bg-surface-800"></div>
+						<div
+							class="h-10 w-10 animate-pulse rounded-lg bg-surface-200 dark:bg-surface-800"
+						></div>
 					</div>
-					<div class="mt-4 h-5 w-1/2 animate-pulse rounded bg-surface-200 dark:bg-surface-800"></div>
-					<div class="mt-2 h-4 w-3/4 animate-pulse rounded bg-surface-200 dark:bg-surface-800"></div>
-					<div class="mt-4 h-3 w-1/4 animate-pulse rounded bg-surface-200 dark:bg-surface-800"></div>
+					<div
+						class="mt-4 h-5 w-1/2 animate-pulse rounded bg-surface-200 dark:bg-surface-800"
+					></div>
+					<div
+						class="mt-2 h-4 w-3/4 animate-pulse rounded bg-surface-200 dark:bg-surface-800"
+					></div>
+					<div
+						class="mt-4 h-3 w-1/4 animate-pulse rounded bg-surface-200 dark:bg-surface-800"
+					></div>
 				</div>
 			{/each}
 		</div>

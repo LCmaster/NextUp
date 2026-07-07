@@ -6,10 +6,58 @@ import type { Ticket } from '$lib/api';
 
 describe('KanbanBoard.svelte', () => {
 	const mockTickets: Ticket[] = [
-		{ id: '1', project_id: 'p1', title: 'Task 1', status: 'todo', priority: 'high', created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null, creator_id: 'u1' },
-		{ id: '2', project_id: 'p1', title: 'Task 2', status: 'in_progress', priority: 'medium', created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null, creator_id: 'u1' },
-		{ id: '3', project_id: 'p1', title: 'Task 3', status: 'done', priority: 'low', created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null, creator_id: 'u1' },
-		{ id: '4', project_id: 'p1', title: 'Task 4', status: 'archived', priority: 'medium', created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null, creator_id: 'u1' },
+		{
+			id: '1',
+			project_id: 'p1',
+			title: 'Task 1',
+			status: 'todo',
+			priority: 'high',
+			created_at: '',
+			updated_at: '',
+			parent_id: null,
+			assignee_id: null,
+			description: null,
+			creator_id: 'u1'
+		},
+		{
+			id: '2',
+			project_id: 'p1',
+			title: 'Task 2',
+			status: 'in_progress',
+			priority: 'medium',
+			created_at: '',
+			updated_at: '',
+			parent_id: null,
+			assignee_id: null,
+			description: null,
+			creator_id: 'u1'
+		},
+		{
+			id: '3',
+			project_id: 'p1',
+			title: 'Task 3',
+			status: 'done',
+			priority: 'low',
+			created_at: '',
+			updated_at: '',
+			parent_id: null,
+			assignee_id: null,
+			description: null,
+			creator_id: 'u1'
+		},
+		{
+			id: '4',
+			project_id: 'p1',
+			title: 'Task 4',
+			status: 'archived',
+			priority: 'medium',
+			created_at: '',
+			updated_at: '',
+			parent_id: null,
+			assignee_id: null,
+			description: null,
+			creator_id: 'u1'
+		}
 	];
 
 	it('renders 4 columns', async () => {

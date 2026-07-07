@@ -7,7 +7,6 @@ test.describe('Project Kanban Board', () => {
 		// Because we're using storageState, we're already authenticated for API calls.
 		// We can get the user ID by checking setup status (which isn't authenticated)
 		// but since we need a project, let's create a test project via API to ensure a clean state.
-		
 		// 1. Get user by calling setup and trying to list projects
 		// Unfortunately, we need the owner_id to create a project via API.
 		// But in our E2E environment we don't know the ID of the user created by setup.
@@ -20,7 +19,7 @@ test.describe('Project Kanban Board', () => {
 		await page.click('button:has-text("New Project")');
 		await page.fill('input[placeholder="Project name"]', 'E2E Test Project');
 		await page.click('button:has-text("Create Project")');
-		
+
 		// The dashboard updates automatically and shows the project card
 		// We click it to navigate to the board
 		const projectCard = page.locator('h3:has-text("E2E Test Project")').first();
@@ -61,7 +60,7 @@ test.describe('Project Kanban Board', () => {
 		await page.click('button:has-text("New Ticket")');
 		await page.fill('input[placeholder="Ticket title"]', 'Moving ticket');
 		await page.click('button:has-text("Create Ticket")');
-		
+
 		// Wait for it to appear
 		const todoColumn = page.locator('.grid > div').nth(0);
 		await expect(todoColumn).toContainText('Moving ticket');
@@ -79,7 +78,7 @@ test.describe('Project Kanban Board', () => {
 		// It should now be in the "In Progress" column (index 1)
 		const inProgressColumn = page.locator('.grid > div').nth(1);
 		await expect(inProgressColumn).toContainText('Moving ticket');
-		
+
 		// Move it to "Done" (index 2)
 		const ticketInProg = page.locator('div:has-text("Moving ticket")').last();
 		await ticketInProg.hover();

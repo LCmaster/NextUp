@@ -44,21 +44,31 @@
 	}
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-gradient-to-br from-surface-100 via-primary-50 to-surface-100 dark:from-surface-950 dark:via-surface-900 dark:to-surface-950 p-4">
+<div
+	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-surface-100 via-primary-50 to-surface-100 dark:from-surface-950 dark:via-surface-900 dark:to-surface-950 p-4"
+>
 	<div class="w-full max-w-md">
 		<!-- Logo -->
 		<div class="mb-8 text-center">
-			<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-2xl font-bold text-white shadow-xl shadow-primary-500/25">
+			<div
+				class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-2xl font-bold text-white shadow-xl shadow-primary-500/25"
+			>
 				N
 			</div>
-			<h1 class="text-3xl font-bold tracking-tight text-surface-900 dark:text-white">Create an Account</h1>
+			<h1 class="text-3xl font-bold tracking-tight text-surface-900 dark:text-white">
+				Create an Account
+			</h1>
 			<p class="mt-2 text-surface-700/70 dark:text-surface-200/50">Register to join NextUp</p>
 		</div>
 
 		<!-- Form card -->
-		<div class="rounded-2xl border border-surface-200/60 bg-white/80 p-8 shadow-xl shadow-surface-900/5 backdrop-blur-sm dark:border-surface-800 dark:bg-surface-900/80">
+		<div
+			class="rounded-2xl border border-surface-200/60 bg-white/80 p-8 shadow-xl shadow-surface-900/5 backdrop-blur-sm dark:border-surface-800 dark:bg-surface-900/80"
+		>
 			{#if error}
-				<div class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+				<div
+					class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400"
+				>
 					{error}
 				</div>
 			{/if}
@@ -66,7 +76,10 @@
 			<form onsubmit={handleSubmit} class="space-y-5">
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label for="firstName" class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200">
+						<label
+							for="firstName"
+							class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200"
+						>
 							First Name
 						</label>
 						<input
@@ -79,7 +92,10 @@
 						/>
 					</div>
 					<div>
-						<label for="lastName" class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200">
+						<label
+							for="lastName"
+							class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200"
+						>
 							Last Name
 						</label>
 						<input
@@ -94,7 +110,10 @@
 				</div>
 
 				<div>
-					<label for="email" class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200">
+					<label
+						for="email"
+						class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200"
+					>
 						Email
 					</label>
 					<input
@@ -108,7 +127,10 @@
 				</div>
 
 				<div>
-					<label for="password" class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200">
+					<label
+						for="password"
+						class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200"
+					>
 						Password
 					</label>
 					<input
@@ -123,7 +145,10 @@
 				</div>
 
 				<div>
-					<label for="confirmPassword" class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200">
+					<label
+						for="confirmPassword"
+						class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200"
+					>
 						Confirm Password
 					</label>
 					<input
@@ -138,8 +163,13 @@
 				</div>
 
 				<div>
-					<label for="githubLink" class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200">
-						GitHub Profile <span class="text-surface-700/40 dark:text-surface-200/30">(optional)</span>
+					<label
+						for="githubLink"
+						class="mb-1.5 block text-sm font-medium text-surface-700 dark:text-surface-200"
+					>
+						GitHub Profile <span class="text-surface-700/40 dark:text-surface-200/30"
+							>(optional)</span
+						>
 					</label>
 					<input
 						id="githubLink"
@@ -158,10 +188,13 @@
 					{loading ? 'Creating Account...' : 'Create Account'}
 				</button>
 			</form>
-			
+
 			<div class="mt-6 text-center text-sm text-surface-700 dark:text-surface-200">
 				Already have an account?
-				<a href="/login" class="font-semibold text-primary-600 hover:text-primary-500 hover:underline dark:text-primary-400">
+				<a
+					href="/login"
+					class="font-semibold text-primary-600 hover:text-primary-500 hover:underline dark:text-primary-400"
+				>
 					Log in
 				</a>
 			</div>

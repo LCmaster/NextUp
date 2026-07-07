@@ -30,7 +30,10 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 	<title>NextUp — Task & Ticket Manager</title>
-	<meta name="description" content="A modern ticketing and to-do list application for teams and individuals." />
+	<meta
+		name="description"
+		content="A modern ticketing and to-do list application for teams and individuals."
+	/>
 </svelte:head>
 
 {@render children()}

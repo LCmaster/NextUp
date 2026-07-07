@@ -51,7 +51,14 @@
 			const ticket = localTickets.find((t) => t.id === draggedId);
 			if (ticket) {
 				try {
-					await updateTicket(ticket.id, { title: ticket.title, priority: ticket.priority, status: ticket.status, description: ticket.description || undefined, assignee_id: ticket.assignee_id || undefined, parent_id: ticket.parent_id || undefined });
+					await updateTicket(ticket.id, {
+						title: ticket.title,
+						priority: ticket.priority,
+						status: ticket.status,
+						description: ticket.description || undefined,
+						assignee_id: ticket.assignee_id || undefined,
+						parent_id: ticket.parent_id || undefined
+					});
 				} catch (err) {
 					console.error('Failed to update ticket status after drop', err);
 					// Revert on failure
@@ -81,7 +88,10 @@
 				use:dndzone={{
 					items: getColumnTickets(status),
 					flipDurationMs: 200,
-					dropTargetStyle: { outline: '2px dashed var(--color-primary-500)', borderRadius: '0.5rem' }
+					dropTargetStyle: {
+						outline: '2px dashed var(--color-primary-500)',
+						borderRadius: '0.5rem'
+					}
 				}}
 				onconsider={(e) => handleConsider(e, status)}
 				onfinalize={(e) => handleFinalize(e, status)}

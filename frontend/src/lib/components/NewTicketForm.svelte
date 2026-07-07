@@ -45,13 +45,17 @@
 	}
 </script>
 
-<div class="mb-6 rounded-xl border border-primary-200 bg-primary-50/50 p-6 dark:border-primary-800/30 dark:bg-primary-900/10">
+<div
+	class="mb-6 rounded-xl border border-primary-200 bg-primary-50/50 p-6 dark:border-primary-800/30 dark:bg-primary-900/10"
+>
 	{#if parentId}
 		<h3 class="mb-4 text-sm font-semibold text-surface-900 dark:text-white">New Sub-task</h3>
 	{/if}
 
 	{#if error}
-		<p class="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
+		<p
+			class="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400"
+		>
 			{error}
 		</p>
 	{/if}

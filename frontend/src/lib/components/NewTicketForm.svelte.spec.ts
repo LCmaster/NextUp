@@ -28,8 +28,17 @@ describe('NewTicketForm.svelte', () => {
 
 	it('submit calls createTicket with correct params', async () => {
 		vi.mocked(api.createTicket).mockResolvedValue({
-			id: '1', project_id: 'p1', title: 'My ticket', status: 'todo', priority: 'medium',
-			created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null, creator_id: 'u1'
+			id: '1',
+			project_id: 'p1',
+			title: 'My ticket',
+			status: 'todo',
+			priority: 'medium',
+			created_at: '',
+			updated_at: '',
+			parent_id: null,
+			assignee_id: null,
+			description: null,
+			creator_id: 'u1'
 		});
 
 		const oncreated = vi.fn();
@@ -38,7 +47,7 @@ describe('NewTicketForm.svelte', () => {
 
 		const titleInput = page.getByPlaceholder('Ticket title');
 		await userEvent.fill(titleInput, 'My ticket');
-		
+
 		const submitBtn = page.getByRole('button', { name: 'Create Ticket' });
 		await userEvent.click(submitBtn);
 
@@ -59,7 +68,7 @@ describe('NewTicketForm.svelte', () => {
 
 		const titleInput = page.getByPlaceholder('Ticket title');
 		await userEvent.fill(titleInput, 'My ticket');
-		
+
 		const submitBtn = page.getByRole('button', { name: 'Create Ticket' });
 		await userEvent.click(submitBtn);
 

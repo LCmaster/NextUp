@@ -21,13 +21,7 @@
 		onbreakdown?: (ticketId: string) => void;
 	}
 
-	let {
-		ticket,
-		allTickets,
-		depth = 0,
-		onrequestsubtask,
-		onbreakdown
-	}: Props = $props();
+	let { ticket, allTickets, depth = 0, onrequestsubtask, onbreakdown }: Props = $props();
 
 	// ---- Local UI state ----
 	let expanded = $state(false);
@@ -48,7 +42,7 @@
 		return me?.role || null;
 	});
 	let canAssign = $derived(currentUserRole === 'owner' || currentUserRole === 'admin');
-	
+
 	let assignee = $derived(members.find((m) => m.user_id === ticket.assignee_id));
 	let creator = $derived(members.find((m) => m.user_id === ticket.creator_id));
 
@@ -219,31 +213,66 @@
 			<div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
 				{#if ticket.status === 'archived'}
 					<button
-						onclick={(e) => { e.stopPropagation(); moveTicket(getLeftStatus(ticket.status)); }}
+						onclick={(e) => {
+							e.stopPropagation();
+							moveTicket(getLeftStatus(ticket.status));
+						}}
 						class="rounded p-1 text-surface-700/40 transition-colors hover:bg-surface-200 hover:text-surface-900 dark:text-surface-200/40 dark:hover:bg-surface-700 dark:hover:text-white"
 						aria-label="Revert to Done"
 						title="Revert to Done"
 					>
-						<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+						<svg
+							class="h-3.5 w-3.5"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M15.75 19.5 8.25 12l7.5-7.5"
+							/>
 						</svg>
 					</button>
 				{:else}
 					<button
-						onclick={(e) => { e.stopPropagation(); startEditing(); }}
+						onclick={(e) => {
+							e.stopPropagation();
+							startEditing();
+						}}
 						class="rounded p-1 text-surface-700/40 transition-colors hover:bg-surface-200 hover:text-surface-900 dark:text-surface-200/40 dark:hover:bg-surface-700 dark:hover:text-white"
 						aria-label="Edit ticket"
 					>
-						<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-							<path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+						<svg
+							class="h-3.5 w-3.5"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="1.5"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+							/>
 						</svg>
 					</button>
 					<button
-						onclick={(e) => { e.stopPropagation(); handleDelete(); }}
+						onclick={(e) => {
+							e.stopPropagation();
+							handleDelete();
+						}}
 						class="rounded p-1 text-surface-700/40 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-surface-200/40 dark:hover:bg-red-900/20 dark:hover:text-red-400"
 						aria-label="Delete ticket"
 					>
-						<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+						<svg
+							class="h-3.5 w-3.5"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="1.5"
+						>
 							<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
 						</svg>
 					</button>
@@ -267,21 +296,28 @@
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-2">
 					<span
-						class="rounded-full px-2 py-0.5 text-[10px] font-semibold {PRIORITY_COLORS[ticket.priority] ||
-							PRIORITY_COLORS.medium}"
+						class="rounded-full px-2 py-0.5 text-[10px] font-semibold {PRIORITY_COLORS[
+							ticket.priority
+						] || PRIORITY_COLORS.medium}"
 					>
 						{ticket.priority}
 					</span>
-					
+
 					{#if assignee}
-						<span class="rounded-full bg-surface-100 px-2 py-0.5 text-[10px] font-medium text-surface-700 dark:bg-surface-800 dark:text-surface-300" title="Assignee">
+						<span
+							class="rounded-full bg-surface-100 px-2 py-0.5 text-[10px] font-medium text-surface-700 dark:bg-surface-800 dark:text-surface-300"
+							title="Assignee"
+						>
 							👤 {assignee.first_name}
 						</span>
 					{/if}
 
 					{#if depth < 3}
 						<button
-							onclick={(e) => { e.stopPropagation(); onrequestsubtask?.(ticket.id); }}
+							onclick={(e) => {
+								e.stopPropagation();
+								onrequestsubtask?.(ticket.id);
+							}}
 							class="rounded px-1.5 py-0.5 text-[10px] font-medium text-surface-700/60 transition-colors hover:bg-surface-200 hover:text-surface-900 dark:text-surface-200/40 dark:hover:bg-surface-800 dark:hover:text-white"
 							title="Add Sub-task"
 						>
@@ -290,13 +326,26 @@
 
 						<button
 							type="button"
-							onclick={(e) => { e.stopPropagation(); handleBreakdown(); }}
+							onclick={(e) => {
+								e.stopPropagation();
+								handleBreakdown();
+							}}
 							disabled={breakingDown}
 							class="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-purple-600/80 transition-colors hover:bg-purple-50 hover:text-purple-700 dark:text-purple-400/80 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 disabled:opacity-50"
 							title="AI Breakdown"
 						>
-							<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.428-1.428L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.428-1.428l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.428 1.428l1.183.394-1.183.394a2.25 2.25 0 0 0-1.428 1.428Z" />
+							<svg
+								class="h-3 w-3"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.428-1.428L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.428-1.428l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.428 1.428l1.183.394-1.183.394a2.25 2.25 0 0 0-1.428 1.428Z"
+								/>
 							</svg>
 							{breakingDown ? 'Thinking...' : 'AI Breakdown'}
 						</button>
@@ -307,23 +356,49 @@
 				<div class="flex gap-1">
 					{#if ticket.status !== 'todo'}
 						<button
-							onclick={(e) => { e.stopPropagation(); moveTicket(getLeftStatus(ticket.status)); }}
+							onclick={(e) => {
+								e.stopPropagation();
+								moveTicket(getLeftStatus(ticket.status));
+							}}
 							class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
 							title="Move left"
 						>
-							<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+							<svg
+								class="h-3.5 w-3.5"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M15.75 19.5 8.25 12l7.5-7.5"
+								/>
 							</svg>
 						</button>
 					{/if}
 					{#if ticket.status !== 'archived'}
 						<button
-							onclick={(e) => { e.stopPropagation(); moveTicket(getRightStatus(ticket.status)); }}
+							onclick={(e) => {
+								e.stopPropagation();
+								moveTicket(getRightStatus(ticket.status));
+							}}
 							class="rounded p-1 text-surface-700/30 transition-colors hover:bg-surface-200 hover:text-surface-700 dark:text-surface-200/20 dark:hover:bg-surface-800 dark:hover:text-surface-200"
 							title="Move right"
 						>
-							<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+							<svg
+								class="h-3.5 w-3.5"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="m8.25 4.5 7.5 7.5-7.5 7.5"
+								/>
 							</svg>
 						</button>
 					{/if}
@@ -334,12 +409,6 @@
 
 	<!-- Sub-tasks (recursive) -->
 	{#each children as child (child.id)}
-		<TicketCard
-			ticket={child}
-			{allTickets}
-			depth={depth + 1}
-			{onrequestsubtask}
-			{onbreakdown}
-		/>
+		<TicketCard ticket={child} {allTickets} depth={depth + 1} {onrequestsubtask} {onbreakdown} />
 	{/each}
 </div>

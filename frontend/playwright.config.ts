@@ -9,18 +9,18 @@ export default defineConfig({
 	reporter: 'html',
 	use: {
 		baseURL: 'http://localhost:80',
-		trace: 'on-first-retry',
+		trace: 'on-first-retry'
 	},
 	projects: [
 		{ name: 'setup', testMatch: /.*\.setup\.ts/ },
 		{
 			name: 'chromium',
-			use: { 
+			use: {
 				...devices['Desktop Chrome'],
 				// Use the signed-in state for all tests in this project
-				storageState: 'playwright/.auth/user.json',
+				storageState: 'playwright/.auth/user.json'
 			},
-			dependencies: ['setup'],
-		},
-	],
+			dependencies: ['setup']
+		}
+	]
 });

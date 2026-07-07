@@ -29,11 +29,17 @@
 							<div class="h-4 w-3/4 animate-pulse rounded bg-surface-100 dark:bg-surface-800"></div>
 							<!-- Body line -->
 							{#if height > 72}
-								<div class="h-3 w-full animate-pulse rounded bg-surface-100 dark:bg-surface-800"></div>
-								<div class="h-3 w-2/3 animate-pulse rounded bg-surface-100 dark:bg-surface-800"></div>
+								<div
+									class="h-3 w-full animate-pulse rounded bg-surface-100 dark:bg-surface-800"
+								></div>
+								<div
+									class="h-3 w-2/3 animate-pulse rounded bg-surface-100 dark:bg-surface-800"
+								></div>
 							{/if}
 							<!-- Footer chip -->
-							<div class="mt-auto h-4 w-14 animate-pulse rounded-full bg-surface-100 dark:bg-surface-800"></div>
+							<div
+								class="mt-auto h-4 w-14 animate-pulse rounded-full bg-surface-100 dark:bg-surface-800"
+							></div>
 						</div>
 					</div>
 				{/each}
