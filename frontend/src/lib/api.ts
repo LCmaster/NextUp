@@ -4,6 +4,7 @@ const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:8080';
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
 	const opts: RequestInit = {
 		method,
+		credentials: 'include', // Always send the HttpOnly session cookie
 		headers: { 'Content-Type': 'application/json' }
 	};
 	if (body) {
@@ -72,8 +73,19 @@ export function login(data: { email: string; password: string }): Promise<User> 
 	return request('POST', '/api/v1/users/login', data);
 }
 
-export function getProfile(email: string): Promise<User> {
-	return request('GET', `/api/v1/users/me?email=${encodeURIComponent(email)}`);
+/**
+ * Fetches the currently authenticated user's profile from the server.
+ * The server identifies the user from the JWT session cookie — no arguments needed.
+ */
+export function getProfile(): Promise<User> {
+	return request('GET', '/api/v1/users/me');
+}
+
+/**
+ * Clears the session cookie on the server, effectively logging out the user.
+ */
+export function logout(): Promise<{ message: string }> {
+	return request('POST', '/api/v1/users/logout');
 }
 
 // --- Projects ---
@@ -148,4 +160,3 @@ export function deleteTicket(id: string): Promise<void> {
 export function breakdownTicket(id: string): Promise<Ticket[]> {
 	return request('POST', `/api/v1/tickets/${id}/breakdown`);
 }
-

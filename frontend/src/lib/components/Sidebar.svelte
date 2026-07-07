@@ -11,6 +11,10 @@
 	function isActive(path: string): boolean {
 		return currentPath === path || currentPath.startsWith(path + '/');
 	}
+
+	async function handleLogout() {
+		await userStore.logout();
+	}
 </script>
 
 <aside
@@ -66,12 +70,12 @@
 		{/if}
 	</nav>
 
-	<!-- User info footer -->
+	<!-- User info footer with logout -->
 	{#if user}
 		<div class="border-t border-surface-200 px-4 py-4 dark:border-surface-800">
 			<div class="flex items-center gap-3">
 				<div
-					class="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-sm font-semibold text-white"
+					class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-sm font-semibold text-white"
 				>
 					{user.first_name[0]}{user.last_name[0]}
 				</div>
@@ -81,6 +85,16 @@
 					</p>
 					<p class="truncate text-xs text-surface-700/60 dark:text-surface-200/50">{user.email}</p>
 				</div>
+				<button
+					id="logout-button"
+					onclick={handleLogout}
+					title="Sign out"
+					class="flex-shrink-0 rounded-md p-1.5 text-surface-700/50 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-surface-200/40 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+				>
+					<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+					</svg>
+				</button>
 			</div>
 		</div>
 	{/if}

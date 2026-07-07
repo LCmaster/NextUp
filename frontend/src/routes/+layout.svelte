@@ -9,8 +9,12 @@
 	let { children } = $props();
 
 	onMount(() => {
-		userStore.restore();
-		wsStore.connect();
+		// Attempt to restore the session from the JWT cookie.
+		// We don't await here because onMount must return the cleanup function synchronously.
+		// The restore() call is fire-and-forget; the store update is reactive.
+		userStore.restore().then(() => {
+			wsStore.connect();
+		});
 
 		const unsubscribe = wsStore.subscribe((event) => {
 			if (event) applyWsEvent(event);
