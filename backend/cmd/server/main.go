@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/google/generative-ai-go/genai"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,6 +19,7 @@ import (
 
 	"github.com/LCmaster/NextUp/internal/db"
 	"github.com/LCmaster/NextUp/internal/handlers"
+	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
 	"github.com/LCmaster/NextUp/internal/services"
 	"github.com/LCmaster/NextUp/internal/ws"
 )
@@ -32,6 +33,10 @@ func main() {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		log.Fatal("DATABASE_URL environment variable is required")
+	}
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET environment variable is required")
 	}
 
 	// Connect to database
@@ -77,25 +82,26 @@ func main() {
 	hub := ws.NewHub()
 	go hub.Run()
 
+	jwtSecretBytes := []byte(jwtSecret)
 	ticketSvc := services.NewTicketService(queries, hub, aiModel)
 
 	// Build router
 	r := chi.NewRouter()
 
-	// Middleware
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	// Global middleware
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(chimiddleware.RequestID)
+	r.Use(chimiddleware.RealIP)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:80", "http://localhost"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
 
-	// Health check
+	// Health check (public)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
@@ -103,9 +109,15 @@ func main() {
 
 	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
-		handlers.RegisterUserRoutes(r, queries)
-		handlers.RegisterProjectRoutes(r, queries, hub)
-		handlers.RegisterTicketRoutes(r, queries, hub, ticketSvc)
+		// User routes — login/setup are public, /me and /logout are protected inside RegisterUserRoutes
+		handlers.RegisterUserRoutes(r, queries, jwtSecretBytes)
+
+		// All project and ticket routes require authentication
+		r.Group(func(r chi.Router) {
+			r.Use(apimiddleware.Auth(jwtSecretBytes))
+			handlers.RegisterProjectRoutes(r, queries, hub)
+			handlers.RegisterTicketRoutes(r, queries, hub, ticketSvc)
+		})
 	})
 
 	// WebSocket endpoint

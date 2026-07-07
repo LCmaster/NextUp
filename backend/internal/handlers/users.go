@@ -8,21 +8,27 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/LCmaster/NextUp/internal/db"
+	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
 )
 
 type userHandler struct {
-	queries db.Querier
+	queries   db.Querier
+	jwtSecret []byte
 }
 
 // RegisterUserRoutes sets up user-related routes.
-func RegisterUserRoutes(r chi.Router, queries db.Querier) {
-	h := &userHandler{queries: queries}
+func RegisterUserRoutes(r chi.Router, queries db.Querier, jwtSecret []byte) {
+	h := &userHandler{queries: queries, jwtSecret: jwtSecret}
 
 	r.Route("/users", func(r chi.Router) {
+		// Public routes — no auth required
 		r.Get("/setup-status", h.getSetupStatus)
 		r.Post("/setup", h.setupAccount)
 		r.Post("/login", h.login)
-		r.Get("/me", h.getProfile)
+
+		// Protected — requires a valid JWT cookie
+		r.With(apimiddleware.Auth(jwtSecret)).Post("/logout", h.logout)
+		r.With(apimiddleware.Auth(jwtSecret)).Get("/me", h.getProfile)
 	})
 }
 
@@ -49,7 +55,7 @@ func (h *userHandler) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]bool{"is_setup": count > 0})
 }
 
-// setupAccount creates the first user account.
+// setupAccount creates the first user account and issues a session cookie.
 func (h *userHandler) setupAccount(w http.ResponseWriter, r *http.Request) {
 	// Check if a user already exists
 	count, err := h.queries.CountUsers(r.Context())
@@ -97,10 +103,18 @@ func (h *userHandler) setupAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Issue JWT session cookie
+	cookie, err := apimiddleware.NewJWTCookie(user.ID.String(), h.jwtSecret)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to create session")
+		return
+	}
+	http.SetCookie(w, cookie)
+
 	respondJSON(w, http.StatusCreated, user)
 }
 
-// login authenticates a user with email and password.
+// login authenticates a user with email and password and issues a session cookie.
 func (h *userHandler) login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -119,25 +133,45 @@ func (h *userHandler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Issue JWT session cookie
+	cookie, err := apimiddleware.NewJWTCookie(user.ID.String(), h.jwtSecret)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to create session")
+		return
+	}
+	http.SetCookie(w, cookie)
+
 	respondJSON(w, http.StatusOK, user)
 }
 
-// getProfile returns the current user's profile (returns the first user for now).
+// logout clears the session cookie.
+func (h *userHandler) logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "nextup_session",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	})
+	respondJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
+}
+
+// getProfile returns the authenticated user's profile using the user ID from the JWT context.
 func (h *userHandler) getProfile(w http.ResponseWriter, r *http.Request) {
-	count, err := h.queries.CountUsers(r.Context())
-	if err != nil || count == 0 {
-		respondError(w, http.StatusNotFound, "No user found")
+	userID, ok := apimiddleware.UserIDFromContext(r.Context())
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
-	// For single-user mode, get user by email from query param or return first user
-	email := r.URL.Query().Get("email")
-	if email == "" {
-		respondError(w, http.StatusBadRequest, "Email query parameter required")
+	var pgID pgtype.UUID
+	if err := pgID.Scan(userID); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
-	user, err := h.queries.GetUserByEmail(r.Context(), email)
+	user, err := h.queries.GetUserByID(r.Context(), pgID)
 	if err != nil {
 		respondError(w, http.StatusNotFound, "User not found")
 		return
