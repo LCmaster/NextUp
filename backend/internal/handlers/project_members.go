@@ -13,18 +13,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/LCmaster/NextUp/internal/db"
+	"github.com/LCmaster/NextUp/internal/mailer"
 	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
 	"github.com/LCmaster/NextUp/internal/ws"
 )
 
 type projectMemberHandler struct {
-	queries db.Querier
-	hub     *ws.Hub
+	queries     db.Querier
+	hub         *ws.Hub
+	mailer      mailer.Mailer
+	frontendURL string
 }
 
 // RegisterProjectMemberRoutes sets up routes for members and invites
-func RegisterProjectMemberRoutes(r chi.Router, queries db.Querier, hub *ws.Hub) {
-	h := &projectMemberHandler{queries: queries, hub: hub}
+func RegisterProjectMemberRoutes(r chi.Router, queries db.Querier, hub *ws.Hub, m mailer.Mailer, frontendURL string) {
+	h := &projectMemberHandler{
+		queries:     queries,
+		hub:         hub,
+		mailer:      m,
+		frontendURL: frontendURL,
+	}
 
 	r.Route("/projects/{id}/members", func(r chi.Router) {
 		r.Get("/", h.listMembers)
@@ -73,6 +81,9 @@ func (h *projectMemberHandler) listMembers(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list members")
 		return
+	}
+	if members == nil {
+		members = make([]db.ListProjectMembersRow, 0)
 	}
 	respondJSON(w, http.StatusOK, members)
 }
@@ -316,11 +327,18 @@ func (h *projectMemberHandler) createInvite(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Simulate sending email
-	println("=== EMAIL SENT ===")
-	println("To:", req.Email)
-	println("Link:", "http://localhost:5173/invites/"+token)
-	println("==================")
+	// Send email asynchronously
+	inviteLink := h.frontendURL + "/invites/" + token
+	go func() {
+		subject := "You've been invited to join a project on NextUp"
+		body := `<p>You have been invited to join a project as a <strong>` + role + `</strong>.</p>
+<p>Click the link below to accept the invitation:</p>
+<p><a href="` + inviteLink + `">` + inviteLink + `</a></p>`
+		if err := h.mailer.SendEmail(context.Background(), req.Email, subject, body); err != nil {
+			// Just log the error, don't fail the request
+			println("Failed to send invite email:", err.Error())
+		}
+	}()
 
 	respondJSON(w, http.StatusCreated, invite)
 }
@@ -346,6 +364,9 @@ func (h *projectMemberHandler) listInvites(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list invites")
 		return
+	}
+	if invites == nil {
+		invites = make([]db.ProjectInvite, 0)
 	}
 	respondJSON(w, http.StatusOK, invites)
 }

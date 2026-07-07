@@ -8,10 +8,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/LCmaster/NextUp/internal/db"
 	"github.com/LCmaster/NextUp/internal/handlers"
+	"github.com/LCmaster/NextUp/internal/mailer"
 	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
 	"github.com/LCmaster/NextUp/internal/services"
 	"github.com/LCmaster/NextUp/internal/ws"
@@ -145,6 +148,74 @@ func (m *MockQuerier) UpdateUser(ctx context.Context, arg db.UpdateUserParams) (
 	return db.User{}, nil
 }
 
+// ── Mock transaction support ─────────────────────────────────────────────────
+
+// mockTx wraps a MockQuerier so that db.New(mockTx) produces a Queries whose
+// underlying DBTX is the mock — allowing CreateProject's tx-scoped Querier
+// (qtx) to reach the same mock fn fields without a real database.
+type mockTx struct{ q *MockQuerier }
+
+func (m *mockTx) Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, nil
+}
+func (m *mockTx) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
+	return nil, nil
+}
+func (m *mockTx) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
+	return nil
+}
+func (m *mockTx) Begin(ctx context.Context) (pgx.Tx, error) { return nil, nil }
+func (m *mockTx) Commit(ctx context.Context) error          { return nil }
+func (m *mockTx) Rollback(ctx context.Context) error        { return nil }
+
+// mockBeginner implements services.Beginner. Begin returns a *db.Queries
+// backed by the mockTx, so that s.queries.(*db.Queries).WithTx(tx) succeeds
+// and the resulting qtx delegates calls to the MockQuerier's fn fields.
+type mockBeginner struct{ q *MockQuerier }
+
+func (b *mockBeginner) Begin(ctx context.Context) (pgx.Tx, error) {
+	// Return a pgx.Tx whose Exec/Query/QueryRow route back through the mock.
+	return &mockTxFull{q: b.q}, nil
+}
+
+// mockTxFull satisfies the pgx.Tx interface used by db.Queries.WithTx.
+// All query methods delegate back to the MockQuerier; commit/rollback are no-ops.
+type mockTxFull struct{ q *MockQuerier }
+
+func (t *mockTxFull) Begin(ctx context.Context) (pgx.Tx, error)  { return nil, nil }
+func (t *mockTxFull) Commit(ctx context.Context) error            { return nil }
+func (t *mockTxFull) Rollback(ctx context.Context) error          { return nil }
+func (t *mockTxFull) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
+	return 0, nil
+}
+func (t *mockTxFull) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults { return nil }
+func (t *mockTxFull) LargeObjects() pgx.LargeObjects                                 { return pgx.LargeObjects{} }
+func (t *mockTxFull) Prepare(ctx context.Context, name, sql string) (*pgconn.StatementDescription, error) {
+	return nil, nil
+}
+func (t *mockTxFull) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	if t.q.CreateProjectFn != nil {
+		// Exec is called by INSERT ... RETURNING via QueryRow in sqlc-generated code;
+		// we only need to satisfy the interface — actual data comes via QueryRow.
+	}
+	return pgconn.CommandTag{}, nil
+}
+func (t *mockTxFull) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+	return nil, nil
+}
+func (t *mockTxFull) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	// sqlc-generated code calls QueryRow for :one queries (CreateProject, AddProjectMember).
+	// We return a fakeRow that produces zero/success values so the handler test passes.
+	return &fakeRow{}
+}
+func (t *mockTxFull) Conn() *pgx.Conn { return nil }
+
+// fakeRow satisfies pgx.Row; Scan succeeds by leaving destination values at
+// their zero values — good enough for the handler-level success path.
+type fakeRow struct{}
+
+func (r *fakeRow) Scan(dest ...any) error { return nil }
+
 // ── Router helper ─────────────────────────────────────────────────────────────
 
 // newTestRouter builds a chi router wired with all handlers using the provided
@@ -158,9 +229,9 @@ func newTestRouter(q *MockQuerier) http.Handler {
 	r.Use(apimiddleware.Auth([]byte("secret")))
 	r.Route("/api/v1", func(r chi.Router) {
 		handlers.RegisterUserRoutes(r, q, []byte("secret"))
-		projectSvc := services.NewProjectService(q, hub)
+		projectSvc := services.NewProjectService(q, &mockBeginner{q: q}, hub)
 		handlers.RegisterProjectRoutes(r, projectSvc)
-		handlers.RegisterProjectMemberRoutes(r, q, hub)
+		handlers.RegisterProjectMemberRoutes(r, q, hub, mailer.NewMockMailer(), "http://localhost:5173")
 		handlers.RegisterTicketRoutes(r, q, hub, svc)
 	})
 	return r

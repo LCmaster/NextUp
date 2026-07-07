@@ -19,6 +19,7 @@ import (
 
 	"github.com/LCmaster/NextUp/internal/db"
 	"github.com/LCmaster/NextUp/internal/handlers"
+	"github.com/LCmaster/NextUp/internal/mailer"
 	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
 	"github.com/LCmaster/NextUp/internal/services"
 	"github.com/LCmaster/NextUp/internal/ws"
@@ -43,6 +44,25 @@ func main() {
 	if jwtSecret == "" {
 		slog.Error("JWT_SECRET environment variable is required")
 		os.Exit(1)
+	}
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173"
+	}
+	
+	// Configure Mailer
+	var m mailer.Mailer
+	smtpHost := os.Getenv("SMTP_HOST")
+	if smtpHost != "" {
+		smtpPort := os.Getenv("SMTP_PORT")
+		smtpUser := os.Getenv("SMTP_USER")
+		smtpPass := os.Getenv("SMTP_PASS")
+		smtpFrom := os.Getenv("SMTP_FROM")
+		m = mailer.NewSMTPMailer(smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom)
+		slog.Info("SMTP mailer initialized", "host", smtpHost)
+	} else {
+		m = mailer.NewMockMailer()
+		slog.Info("SMTP_HOST not set, using mock mailer")
 	}
 
 	// Connect to database
@@ -125,9 +145,9 @@ func main() {
 		// All project and ticket routes require authentication
 		r.Group(func(r chi.Router) {
 			r.Use(apimiddleware.Auth(jwtSecretBytes))
-			projectSvc := services.NewProjectService(queries, hub)
+			projectSvc := services.NewProjectService(queries, pool, hub)
 			handlers.RegisterProjectRoutes(r, projectSvc)
-			handlers.RegisterProjectMemberRoutes(r, queries, hub)
+			handlers.RegisterProjectMemberRoutes(r, queries, hub, m, frontendURL)
 			handlers.RegisterTicketRoutes(r, queries, hub, ticketSvc)
 		})
 	})
