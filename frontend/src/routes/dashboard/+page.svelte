@@ -15,7 +15,7 @@
 
 	$effect(() => {
 		if (user) {
-			listProjects(user.id)
+			listProjects()
 				.then((data) => projectsStore.set(data || []))
 				.catch((err) => console.error('Failed to load projects:', err));
 		}
@@ -29,8 +29,7 @@
 		try {
 			await createProject({
 				name: newProjectName.trim(),
-				description: newProjectDesc.trim() || undefined,
-				owner_id: user.id
+				description: newProjectDesc.trim() || undefined
 			});
 			newProjectName = '';
 			newProjectDesc = '';

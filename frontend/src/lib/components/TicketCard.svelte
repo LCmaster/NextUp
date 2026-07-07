@@ -2,6 +2,8 @@
 	import { updateTicket, deleteTicket, breakdownTicket } from '$lib/api';
 	import { toast } from '$lib/stores/toast';
 	import type { Ticket } from '$lib/api';
+	import { projectMembersStore } from '$lib/stores/websocket';
+	import { userStore } from '$lib/stores/user';
 
 	const PRIORITY_COLORS: Record<string, string> = {
 		low: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -32,15 +34,28 @@
 	let breakingDown = $state(false);
 	let saving = $state(false);
 
-	// Edit field state
 	let editTitle = $state('');
 	let editDesc = $state('');
 	let editPriority = $state('medium');
+	let editAssignee = $state<string>('');
+
+	let members = $derived($projectMembersStore[ticket.project_id] || []);
+	let currentUser = $derived($userStore);
+	let currentUserRole = $derived.by(() => {
+		if (!currentUser) return null;
+		const me = members.find((m) => m.user_id === currentUser.id);
+		return me?.role || null;
+	});
+	let canAssign = $derived(currentUserRole === 'owner' || currentUserRole === 'admin');
+	
+	let assignee = $derived(members.find((m) => m.user_id === ticket.assignee_id));
+	let creator = $derived(members.find((m) => m.user_id === ticket.creator_id));
 
 	function startEditing() {
 		editTitle = ticket.title;
 		editDesc = ticket.description || '';
 		editPriority = ticket.priority;
+		editAssignee = ticket.assignee_id || '';
 		editing = true;
 	}
 
@@ -57,7 +72,7 @@
 				description: editDesc.trim() || undefined,
 				status: ticket.status,
 				priority: editPriority,
-				assignee_id: ticket.assignee_id || undefined,
+				assignee_id: editAssignee || undefined,
 				parent_id: ticket.parent_id || undefined
 			});
 			editing = false;
@@ -158,6 +173,17 @@
 					<option value="high">High</option>
 					<option value="critical">Critical</option>
 				</select>
+				{#if canAssign}
+					<select
+						bind:value={editAssignee}
+						class="max-w-[100px] rounded-lg border border-surface-200 bg-white px-2 py-1 text-xs text-surface-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-800 dark:text-white"
+					>
+						<option value="">Unassigned</option>
+						{#each members as member}
+							<option value={member.user_id}>{member.first_name} {member.last_name}</option>
+						{/each}
+					</select>
+				{/if}
 				<div class="flex gap-2">
 					<button
 						type="button"
@@ -245,6 +271,12 @@
 					>
 						{ticket.priority}
 					</span>
+					
+					{#if assignee}
+						<span class="rounded-full bg-surface-100 px-2 py-0.5 text-[10px] font-medium text-surface-700 dark:bg-surface-800 dark:text-surface-300" title="Assignee">
+							👤 {assignee.first_name}
+						</span>
+					{/if}
 
 					{#if depth < 3}
 						<button
