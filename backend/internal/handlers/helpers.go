@@ -3,6 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/go-playground/validator/v10"
 )
 
 // respondJSON writes a JSON response with the given status code.
@@ -19,8 +21,13 @@ func respondError(w http.ResponseWriter, status int, message string) {
 	respondJSON(w, status, map[string]string{"error": message})
 }
 
-// decodeJSON decodes a JSON request body into the given target.
+var Validate = validator.New()
+
+// decodeJSON decodes a JSON request body into the given target and validates it.
 func decodeJSON(r *http.Request, target interface{}) error {
 	defer r.Body.Close()
-	return json.NewDecoder(r.Body).Decode(target)
+	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
+		return err
+	}
+	return Validate.Struct(target)
 }

@@ -23,8 +23,12 @@ func RegisterUserRoutes(r chi.Router, queries db.Querier, jwtSecret []byte) {
 	r.Route("/users", func(r chi.Router) {
 		// Public routes — no auth required
 		r.Get("/setup-status", h.getSetupStatus)
-		r.Post("/register", h.register)
-		r.Post("/login", h.login)
+		
+		// Rate-limited auth routes
+		// 5 requests per second, burst of 10
+		authLimiter := apimiddleware.NewIPRateLimiter(5, 10)
+		r.With(apimiddleware.RateLimit(authLimiter)).Post("/register", h.register)
+		r.With(apimiddleware.RateLimit(authLimiter)).Post("/login", h.login)
 
 		// Protected — requires a valid JWT cookie
 		r.With(apimiddleware.Auth(jwtSecret)).Post("/logout", h.logout)
@@ -34,16 +38,16 @@ func RegisterUserRoutes(r chi.Router, queries db.Querier, jwtSecret []byte) {
 }
 
 type setupRequest struct {
-	FirstName  string `json:"first_name"`
-	LastName   string `json:"last_name"`
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	GithubLink string `json:"github_link,omitempty"`
+	FirstName  string `json:"first_name" validate:"required"`
+	LastName   string `json:"last_name" validate:"required"`
+	Email      string `json:"email" validate:"required,email"`
+	Password   string `json:"password" validate:"required,min=8"`
+	GithubLink string `json:"github_link,omitempty" validate:"omitempty,url"`
 }
 
 type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
 }
 
 // getSetupStatus checks if the first user has been created.
@@ -61,12 +65,7 @@ func (h *userHandler) register(w http.ResponseWriter, r *http.Request) {
 
 	var req setupRequest
 	if err := decodeJSON(r, &req); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
-		return
-	}
-
-	if req.FirstName == "" || req.LastName == "" || req.Email == "" || req.Password == "" {
-		respondError(w, http.StatusBadRequest, "First name, last name, email, and password are required")
+		respondError(w, http.StatusBadRequest, "Invalid request body or validation failed")
 		return
 	}
 
