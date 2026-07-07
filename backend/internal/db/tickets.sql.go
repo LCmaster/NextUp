@@ -14,7 +14,7 @@ import (
 const createTicket = `-- name: CreateTicket :one
 INSERT INTO tickets (project_id, title, description, status, priority, assignee_id, parent_id, creator_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id, creator_id
+RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id, creator_id, deleted_at
 `
 
 type CreateTicketParams struct {
@@ -52,12 +52,13 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.CreatorID,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const deleteTicket = `-- name: DeleteTicket :exec
-DELETE FROM tickets WHERE id = $1
+UPDATE tickets SET deleted_at = NOW() WHERE id = $1
 `
 
 func (q *Queries) DeleteTicket(ctx context.Context, id pgtype.UUID) error {
@@ -66,7 +67,7 @@ func (q *Queries) DeleteTicket(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getTicketByID = `-- name: GetTicketByID :one
-SELECT id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id, creator_id FROM tickets WHERE id = $1
+SELECT id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id, creator_id, deleted_at FROM tickets WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetTicketByID(ctx context.Context, id pgtype.UUID) (Ticket, error) {
@@ -84,14 +85,15 @@ func (q *Queries) GetTicketByID(ctx context.Context, id pgtype.UUID) (Ticket, er
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.CreatorID,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const listTicketsByProjectAndUser = `-- name: ListTicketsByProjectAndUser :many
-SELECT t.id, t.project_id, t.title, t.description, t.status, t.priority, t.assignee_id, t.created_at, t.updated_at, t.parent_id, t.creator_id FROM tickets t
+SELECT t.id, t.project_id, t.title, t.description, t.status, t.priority, t.assignee_id, t.created_at, t.updated_at, t.parent_id, t.creator_id, t.deleted_at FROM tickets t
 JOIN project_members pm ON t.project_id = pm.project_id
-WHERE t.project_id = $1 AND pm.user_id = $2
+WHERE t.project_id = $1 AND pm.user_id = $2 AND t.deleted_at IS NULL
   AND (
     pm.role IN ('admin', 'owner')
     OR t.assignee_id = $2
@@ -126,6 +128,7 @@ func (q *Queries) ListTicketsByProjectAndUser(ctx context.Context, arg ListTicke
 			&i.UpdatedAt,
 			&i.ParentID,
 			&i.CreatorID,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -147,7 +150,7 @@ SET title = $2,
     parent_id = $7,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id, creator_id
+RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id, creator_id, deleted_at
 `
 
 type UpdateTicketParams struct {
@@ -183,6 +186,7 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 		&i.UpdatedAt,
 		&i.ParentID,
 		&i.CreatorID,
+		&i.DeletedAt,
 	)
 	return i, err
 }

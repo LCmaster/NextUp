@@ -4,12 +4,12 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: GetTicketByID :one
-SELECT * FROM tickets WHERE id = $1;
+SELECT * FROM tickets WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListTicketsByProjectAndUser :many
 SELECT t.* FROM tickets t
 JOIN project_members pm ON t.project_id = pm.project_id
-WHERE t.project_id = $1 AND pm.user_id = $2
+WHERE t.project_id = $1 AND pm.user_id = $2 AND t.deleted_at IS NULL
   AND (
     pm.role IN ('admin', 'owner')
     OR t.assignee_id = $2
@@ -30,4 +30,4 @@ WHERE id = $1
 RETURNING *;
 
 -- name: DeleteTicket :exec
-DELETE FROM tickets WHERE id = $1;
+UPDATE tickets SET deleted_at = NOW() WHERE id = $1;

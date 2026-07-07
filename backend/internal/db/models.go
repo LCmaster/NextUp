@@ -15,6 +15,7 @@ type Project struct {
 	OwnerID     pgtype.UUID        `json:"owner_id"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type ProjectInvite struct {
@@ -46,6 +47,7 @@ type Ticket struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 	ParentID    pgtype.UUID        `json:"parent_id"`
 	CreatorID   pgtype.UUID        `json:"creator_id"`
+	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type User struct {

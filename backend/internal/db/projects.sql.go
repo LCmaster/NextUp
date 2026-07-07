@@ -14,7 +14,7 @@ import (
 const createProject = `-- name: CreateProject :one
 INSERT INTO projects (name, description, owner_id)
 VALUES ($1, $2, $3)
-RETURNING id, name, description, owner_id, created_at, updated_at
+RETURNING id, name, description, owner_id, created_at, updated_at, deleted_at
 `
 
 type CreateProjectParams struct {
@@ -33,12 +33,13 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.OwnerID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const deleteProject = `-- name: DeleteProject :exec
-DELETE FROM projects WHERE id = $1
+UPDATE projects SET deleted_at = NOW() WHERE id = $1
 `
 
 func (q *Queries) DeleteProject(ctx context.Context, id pgtype.UUID) error {
@@ -47,7 +48,7 @@ func (q *Queries) DeleteProject(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getProjectByID = `-- name: GetProjectByID :one
-SELECT id, name, description, owner_id, created_at, updated_at FROM projects WHERE id = $1
+SELECT id, name, description, owner_id, created_at, updated_at, deleted_at FROM projects WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetProjectByID(ctx context.Context, id pgtype.UUID) (Project, error) {
@@ -60,14 +61,15 @@ func (q *Queries) GetProjectByID(ctx context.Context, id pgtype.UUID) (Project, 
 		&i.OwnerID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const listProjectsByMember = `-- name: ListProjectsByMember :many
-SELECT p.id, p.name, p.description, p.owner_id, p.created_at, p.updated_at FROM projects p
+SELECT p.id, p.name, p.description, p.owner_id, p.created_at, p.updated_at, p.deleted_at FROM projects p
 JOIN project_members pm ON p.id = pm.project_id
-WHERE pm.user_id = $1
+WHERE pm.user_id = $1 AND p.deleted_at IS NULL
 ORDER BY p.created_at DESC
 `
 
@@ -87,6 +89,7 @@ func (q *Queries) ListProjectsByMember(ctx context.Context, userID pgtype.UUID) 
 			&i.OwnerID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -104,7 +107,7 @@ SET name = $2,
     description = $3,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, name, description, owner_id, created_at, updated_at
+RETURNING id, name, description, owner_id, created_at, updated_at, deleted_at
 `
 
 type UpdateProjectParams struct {
@@ -123,6 +126,7 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		&i.OwnerID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
