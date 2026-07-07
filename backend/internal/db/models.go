@@ -17,6 +17,23 @@ type Project struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
+type ProjectInvite struct {
+	ID        pgtype.UUID        `json:"id"`
+	ProjectID pgtype.UUID        `json:"project_id"`
+	Email     string             `json:"email"`
+	Token     string             `json:"token"`
+	Role      string             `json:"role"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+}
+
+type ProjectMember struct {
+	ProjectID pgtype.UUID        `json:"project_id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Role      string             `json:"role"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Ticket struct {
 	ID          pgtype.UUID        `json:"id"`
 	ProjectID   pgtype.UUID        `json:"project_id"`
@@ -28,6 +45,7 @@ type Ticket struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 	ParentID    pgtype.UUID        `json:"parent_id"`
+	CreatorID   pgtype.UUID        `json:"creator_id"`
 }
 
 type User struct {

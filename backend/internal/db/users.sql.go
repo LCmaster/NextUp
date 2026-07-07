@@ -98,6 +98,48 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	return i, err
 }
 
+const listUsers = `-- name: ListUsers :many
+SELECT id, first_name, last_name, email, github_link, created_at, updated_at FROM users ORDER BY created_at DESC
+`
+
+type ListUsersRow struct {
+	ID         pgtype.UUID        `json:"id"`
+	FirstName  string             `json:"first_name"`
+	LastName   string             `json:"last_name"`
+	Email      string             `json:"email"`
+	GithubLink pgtype.Text        `json:"github_link"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
+	rows, err := q.db.Query(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUsersRow
+	for rows.Next() {
+		var i ListUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.GithubLink,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET first_name = $2,

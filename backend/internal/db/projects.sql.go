@@ -64,12 +64,15 @@ func (q *Queries) GetProjectByID(ctx context.Context, id pgtype.UUID) (Project, 
 	return i, err
 }
 
-const listProjectsByOwner = `-- name: ListProjectsByOwner :many
-SELECT id, name, description, owner_id, created_at, updated_at FROM projects WHERE owner_id = $1 ORDER BY created_at DESC
+const listProjectsByMember = `-- name: ListProjectsByMember :many
+SELECT p.id, p.name, p.description, p.owner_id, p.created_at, p.updated_at FROM projects p
+JOIN project_members pm ON p.id = pm.project_id
+WHERE pm.user_id = $1
+ORDER BY p.created_at DESC
 `
 
-func (q *Queries) ListProjectsByOwner(ctx context.Context, ownerID pgtype.UUID) ([]Project, error) {
-	rows, err := q.db.Query(ctx, listProjectsByOwner, ownerID)
+func (q *Queries) ListProjectsByMember(ctx context.Context, userID pgtype.UUID) ([]Project, error) {
+	rows, err := q.db.Query(ctx, listProjectsByMember, userID)
 	if err != nil {
 		return nil, err
 	}

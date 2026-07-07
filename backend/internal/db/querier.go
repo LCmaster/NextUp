@@ -11,19 +11,29 @@ import (
 )
 
 type Querier interface {
+	AddProjectMember(ctx context.Context, arg AddProjectMemberParams) (ProjectMember, error)
 	CountUsers(ctx context.Context) (int64, error)
 	CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error)
+	CreateProjectInvite(ctx context.Context, arg CreateProjectInviteParams) (ProjectInvite, error)
 	CreateTicket(ctx context.Context, arg CreateTicketParams) (Ticket, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteProject(ctx context.Context, id pgtype.UUID) error
+	DeleteProjectInvite(ctx context.Context, id pgtype.UUID) error
 	DeleteTicket(ctx context.Context, id pgtype.UUID) error
 	GetProjectByID(ctx context.Context, id pgtype.UUID) (Project, error)
+	GetProjectInviteByToken(ctx context.Context, token string) (ProjectInvite, error)
+	GetProjectMember(ctx context.Context, arg GetProjectMemberParams) (ProjectMember, error)
 	GetTicketByID(ctx context.Context, id pgtype.UUID) (Ticket, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
-	ListProjectsByOwner(ctx context.Context, ownerID pgtype.UUID) ([]Project, error)
-	ListTicketsByProject(ctx context.Context, projectID pgtype.UUID) ([]Ticket, error)
+	ListProjectInvites(ctx context.Context, projectID pgtype.UUID) ([]ProjectInvite, error)
+	ListProjectMembers(ctx context.Context, projectID pgtype.UUID) ([]ListProjectMembersRow, error)
+	ListProjectsByMember(ctx context.Context, userID pgtype.UUID) ([]Project, error)
+	ListTicketsByProjectAndUser(ctx context.Context, arg ListTicketsByProjectAndUserParams) ([]Ticket, error)
+	ListUsers(ctx context.Context) ([]ListUsersRow, error)
+	RemoveProjectMember(ctx context.Context, arg RemoveProjectMemberParams) error
 	UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error)
+	UpdateProjectMemberRole(ctx context.Context, arg UpdateProjectMemberRoleParams) (ProjectMember, error)
 	UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Ticket, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 }

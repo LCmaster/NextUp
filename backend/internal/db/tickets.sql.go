@@ -12,9 +12,9 @@ import (
 )
 
 const createTicket = `-- name: CreateTicket :one
-INSERT INTO tickets (project_id, title, description, status, priority, assignee_id, parent_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id
+INSERT INTO tickets (project_id, title, description, status, priority, assignee_id, parent_id, creator_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id, creator_id
 `
 
 type CreateTicketParams struct {
@@ -25,6 +25,7 @@ type CreateTicketParams struct {
 	Priority    string      `json:"priority"`
 	AssigneeID  pgtype.UUID `json:"assignee_id"`
 	ParentID    pgtype.UUID `json:"parent_id"`
+	CreatorID   pgtype.UUID `json:"creator_id"`
 }
 
 func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Ticket, error) {
@@ -36,6 +37,7 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		arg.Priority,
 		arg.AssigneeID,
 		arg.ParentID,
+		arg.CreatorID,
 	)
 	var i Ticket
 	err := row.Scan(
@@ -49,6 +51,7 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ParentID,
+		&i.CreatorID,
 	)
 	return i, err
 }
@@ -63,7 +66,7 @@ func (q *Queries) DeleteTicket(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getTicketByID = `-- name: GetTicketByID :one
-SELECT id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id FROM tickets WHERE id = $1
+SELECT id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id, creator_id FROM tickets WHERE id = $1
 `
 
 func (q *Queries) GetTicketByID(ctx context.Context, id pgtype.UUID) (Ticket, error) {
@@ -80,16 +83,30 @@ func (q *Queries) GetTicketByID(ctx context.Context, id pgtype.UUID) (Ticket, er
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ParentID,
+		&i.CreatorID,
 	)
 	return i, err
 }
 
-const listTicketsByProject = `-- name: ListTicketsByProject :many
-SELECT id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id FROM tickets WHERE project_id = $1 ORDER BY created_at DESC
+const listTicketsByProjectAndUser = `-- name: ListTicketsByProjectAndUser :many
+SELECT t.id, t.project_id, t.title, t.description, t.status, t.priority, t.assignee_id, t.created_at, t.updated_at, t.parent_id, t.creator_id FROM tickets t
+JOIN project_members pm ON t.project_id = pm.project_id
+WHERE t.project_id = $1 AND pm.user_id = $2
+  AND (
+    pm.role IN ('admin', 'owner')
+    OR t.assignee_id = $2
+    OR (t.creator_id = $2 AND t.assignee_id IS NULL)
+  )
+ORDER BY t.created_at DESC
 `
 
-func (q *Queries) ListTicketsByProject(ctx context.Context, projectID pgtype.UUID) ([]Ticket, error) {
-	rows, err := q.db.Query(ctx, listTicketsByProject, projectID)
+type ListTicketsByProjectAndUserParams struct {
+	ProjectID pgtype.UUID `json:"project_id"`
+	UserID    pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) ListTicketsByProjectAndUser(ctx context.Context, arg ListTicketsByProjectAndUserParams) ([]Ticket, error) {
+	rows, err := q.db.Query(ctx, listTicketsByProjectAndUser, arg.ProjectID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +125,7 @@ func (q *Queries) ListTicketsByProject(ctx context.Context, projectID pgtype.UUI
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ParentID,
+			&i.CreatorID,
 		); err != nil {
 			return nil, err
 		}
@@ -129,7 +147,7 @@ SET title = $2,
     parent_id = $7,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id
+RETURNING id, project_id, title, description, status, priority, assignee_id, created_at, updated_at, parent_id, creator_id
 `
 
 type UpdateTicketParams struct {
@@ -164,6 +182,7 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ParentID,
+		&i.CreatorID,
 	)
 	return i, err
 }
