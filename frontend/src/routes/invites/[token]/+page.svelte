@@ -9,7 +9,7 @@
 	let error = $state('');
 	let success = $state(false);
 	
-	const token = $page.params.token;
+	const token = $page.params.token as string;
 
 	onMount(() => {
 		// If user is not logged in, they need to log in or register before accepting

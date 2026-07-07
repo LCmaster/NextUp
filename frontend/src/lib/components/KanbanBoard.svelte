@@ -51,7 +51,7 @@
 			const ticket = localTickets.find((t) => t.id === draggedId);
 			if (ticket) {
 				try {
-					await updateTicket(ticket.project_id, ticket.id, { status: ticket.status });
+					await updateTicket(ticket.id, { title: ticket.title, priority: ticket.priority, status: ticket.status, description: ticket.description || undefined, assignee_id: ticket.assignee_id || undefined, parent_id: ticket.parent_id || undefined });
 				} catch (err) {
 					console.error('Failed to update ticket status after drop', err);
 					// Revert on failure

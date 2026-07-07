@@ -4,6 +4,7 @@
 	import type { Ticket } from '$lib/api';
 	import { projectMembersStore } from '$lib/stores/websocket';
 	import { userStore } from '$lib/stores/user';
+	import TicketCard from './TicketCard.svelte';
 
 	const PRIORITY_COLORS: Record<string, string> = {
 		low: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -333,7 +334,7 @@
 
 	<!-- Sub-tasks (recursive) -->
 	{#each children as child (child.id)}
-		<svelte:self
+		<TicketCard
 			ticket={child}
 			{allTickets}
 			depth={depth + 1}

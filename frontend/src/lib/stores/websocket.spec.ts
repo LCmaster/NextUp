@@ -12,7 +12,7 @@ describe('websocket events', () => {
 	it('applyWsEvent ticket.created prepends the new ticket', () => {
 		const ticket: Ticket = {
 			id: '1', project_id: 'p1', title: 'New', status: 'todo', priority: 'medium',
-			created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null
+			created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null, creator_id: 'u1'
 		};
 		
 		applyWsEvent({ type: 'ticket.created', payload: ticket });
@@ -25,7 +25,7 @@ describe('websocket events', () => {
 	it('applyWsEvent ticket.updated updates in place', () => {
 		const ticket1: Ticket = {
 			id: '1', project_id: 'p1', title: 'Old', status: 'todo', priority: 'medium',
-			created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null
+			created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null, creator_id: 'u1'
 		};
 		ticketsStore.set([ticket1]);
 
@@ -40,7 +40,7 @@ describe('websocket events', () => {
 	it('applyWsEvent ticket.deleted removes by id', () => {
 		const ticket1: Ticket = {
 			id: '1', project_id: 'p1', title: 'Old', status: 'todo', priority: 'medium',
-			created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null
+			created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null, creator_id: 'u1'
 		};
 		ticketsStore.set([ticket1]);
 

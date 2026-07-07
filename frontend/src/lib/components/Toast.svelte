@@ -29,7 +29,6 @@
 				animate-[slideInRight_0.25s_ease-out]
 				{STYLES[t.type]}"
 		>
-			<!-- svelte-ignore html_dangerous_innerHTML -->
 			{@html ICONS[t.type]}
 			<span>{t.message}</span>
 			<button

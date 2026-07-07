@@ -16,7 +16,7 @@
 	import { userStore } from '$lib/stores/user';
 	import { projectMembersStore, wsStore } from '$lib/stores/websocket';
 
-	let projectId = $derived($page.params.id);
+	let projectId = $derived($page.params.id as string);
 	let user = $derived($userStore);
 	let project = $state<Project | null>(null);
 	let members = $derived($projectMembersStore[projectId] || []);
@@ -225,8 +225,9 @@
 						<h2 class="mb-4 font-semibold text-surface-900 dark:text-white">Invite Member</h2>
 						<form onsubmit={handleInvite} class="space-y-4">
 							<div>
-								<label class="mb-1 block text-sm font-medium text-surface-700 dark:text-surface-300">Email Address</label>
+								<label for="inviteEmail" class="mb-1 block text-sm font-medium text-surface-700 dark:text-surface-300">Email Address</label>
 								<input
+									id="inviteEmail"
 									type="email"
 									bind:value={inviteEmail}
 									required
@@ -235,8 +236,9 @@
 								/>
 							</div>
 							<div>
-								<label class="mb-1 block text-sm font-medium text-surface-700 dark:text-surface-300">Role</label>
+								<label for="inviteRole" class="mb-1 block text-sm font-medium text-surface-700 dark:text-surface-300">Role</label>
 								<select
+									id="inviteRole"
 									bind:value={inviteRole}
 									class="w-full rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 text-sm text-surface-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-800 dark:text-white"
 								>

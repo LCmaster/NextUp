@@ -29,7 +29,7 @@ describe('NewTicketForm.svelte', () => {
 	it('submit calls createTicket with correct params', async () => {
 		vi.mocked(api.createTicket).mockResolvedValue({
 			id: '1', project_id: 'p1', title: 'My ticket', status: 'todo', priority: 'medium',
-			created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null
+			created_at: '', updated_at: '', parent_id: null, assignee_id: null, description: null, creator_id: 'u1'
 		});
 
 		const oncreated = vi.fn();
