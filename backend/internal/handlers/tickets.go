@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/LCmaster/NextUp/internal/db"
+	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
 	"github.com/LCmaster/NextUp/internal/services"
 	"github.com/LCmaster/NextUp/internal/ws"
 )
@@ -52,6 +54,26 @@ type updateTicketRequest struct {
 	ParentID    string `json:"parent_id,omitempty"`
 }
 
+func (h *ticketHandler) canViewTicket(ctx context.Context, ticket db.Ticket, userID pgtype.UUID) (bool, string) {
+	member, err := h.queries.GetProjectMember(ctx, db.GetProjectMemberParams{
+		ProjectID: ticket.ProjectID,
+		UserID:    userID,
+	})
+	if err != nil {
+		return false, ""
+	}
+	if member.Role == "owner" || member.Role == "admin" {
+		return true, member.Role
+	}
+	if ticket.AssigneeID == userID {
+		return true, member.Role
+	}
+	if ticket.CreatorID == userID && !ticket.AssigneeID.Valid {
+		return true, member.Role
+	}
+	return false, member.Role
+}
+
 func (h *ticketHandler) createTicket(w http.ResponseWriter, r *http.Request) {
 	var req createTicketRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -67,6 +89,20 @@ func (h *ticketHandler) createTicket(w http.ResponseWriter, r *http.Request) {
 	projectID := pgtype.UUID{}
 	if err := projectID.Scan(req.ProjectID); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid project_id format")
+		return
+	}
+
+	userIDStr, _ := apimiddleware.UserIDFromContext(r.Context())
+	userID := pgtype.UUID{}
+	userID.Scan(userIDStr)
+
+	// Validate user is in project
+	_, err := h.queries.GetProjectMember(r.Context(), db.GetProjectMemberParams{
+		ProjectID: projectID,
+		UserID:    userID,
+	})
+	if err != nil {
+		respondError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
 
@@ -109,6 +145,7 @@ func (h *ticketHandler) createTicket(w http.ResponseWriter, r *http.Request) {
 		Priority:    priority,
 		AssigneeID:  assigneeID,
 		ParentID:    parentID,
+		CreatorID:   userID,
 	})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to create ticket")
@@ -132,7 +169,14 @@ func (h *ticketHandler) listTickets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tickets, err := h.queries.ListTicketsByProject(r.Context(), projectID)
+	userIDStr, _ := apimiddleware.UserIDFromContext(r.Context())
+	userID := pgtype.UUID{}
+	userID.Scan(userIDStr)
+
+	tickets, err := h.queries.ListTicketsByProjectAndUser(r.Context(), db.ListTicketsByProjectAndUserParams{
+		ProjectID: projectID,
+		UserID:    userID,
+	})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list tickets")
 		return
@@ -158,6 +202,15 @@ func (h *ticketHandler) getTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userIDStr, _ := apimiddleware.UserIDFromContext(r.Context())
+	userID := pgtype.UUID{}
+	userID.Scan(userIDStr)
+
+	if canView, _ := h.canViewTicket(r.Context(), ticket, userID); !canView {
+		respondError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
 	respondJSON(w, http.StatusOK, ticket)
 }
 
@@ -168,9 +221,39 @@ func (h *ticketHandler) updateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ticketToUpdate, err := h.queries.GetTicketByID(r.Context(), id)
+	if err != nil {
+		respondError(w, http.StatusNotFound, "Ticket not found")
+		return
+	}
+
+	userIDStr, _ := apimiddleware.UserIDFromContext(r.Context())
+	userID := pgtype.UUID{}
+	userID.Scan(userIDStr)
+
+	canView, role := h.canViewTicket(r.Context(), ticketToUpdate, userID)
+	if !canView {
+		respondError(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
+	isAssignee := ticketToUpdate.AssigneeID == userID
+	canEdit := role == "owner" || role == "admin" || isAssignee
+
+	if !canEdit {
+		respondError(w, http.StatusForbidden, "Forbidden: insufficient permissions to edit ticket")
+		return
+	}
+
 	var req updateTicketRequest
 	if err := decodeJSON(r, &req); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Only admins and owners can reassign tickets
+	if req.AssigneeID != "" && req.AssigneeID != ticketToUpdate.AssigneeID.String() && role != "owner" && role != "admin" {
+		respondError(w, http.StatusForbidden, "Forbidden: only admins can assign tickets")
 		return
 	}
 
@@ -217,6 +300,22 @@ func (h *ticketHandler) deleteTicket(w http.ResponseWriter, r *http.Request) {
 	id := pgtype.UUID{}
 	if err := id.Scan(chi.URLParam(r, "id")); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		return
+	}
+
+	ticketToDelete, err := h.queries.GetTicketByID(r.Context(), id)
+	if err != nil {
+		respondError(w, http.StatusNotFound, "Ticket not found")
+		return
+	}
+
+	userIDStr, _ := apimiddleware.UserIDFromContext(r.Context())
+	userID := pgtype.UUID{}
+	userID.Scan(userIDStr)
+
+	canView, role := h.canViewTicket(r.Context(), ticketToDelete, userID)
+	if !canView || (role != "owner" && role != "admin" && ticketToDelete.CreatorID != userID) {
+		respondError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
 

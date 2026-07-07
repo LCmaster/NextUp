@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/LCmaster/NextUp/internal/db"
+	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
 	"github.com/LCmaster/NextUp/internal/ws"
 )
 
@@ -31,7 +32,6 @@ func RegisterProjectRoutes(r chi.Router, queries db.Querier, hub *ws.Hub) {
 type createProjectRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
-	OwnerID     string `json:"owner_id"`
 }
 
 type updateProjectRequest struct {
@@ -46,14 +46,20 @@ func (h *projectHandler) createProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" || req.OwnerID == "" {
-		respondError(w, http.StatusBadRequest, "Name and owner_id are required")
+	if req.Name == "" {
+		respondError(w, http.StatusBadRequest, "Name is required")
 		return
 	}
 
-	ownerID := pgtype.UUID{}
-	if err := ownerID.Scan(req.OwnerID); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid owner_id format")
+	userIDStr, ok := apimiddleware.UserIDFromContext(r.Context())
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	userID := pgtype.UUID{}
+	if err := userID.Scan(userIDStr); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
@@ -65,11 +71,21 @@ func (h *projectHandler) createProject(w http.ResponseWriter, r *http.Request) {
 	project, err := h.queries.CreateProject(r.Context(), db.CreateProjectParams{
 		Name:        req.Name,
 		Description: description,
-		OwnerID:     ownerID,
+		OwnerID:     userID,
 	})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to create project")
 		return
+	}
+
+	// Add creator as owner
+	_, err = h.queries.AddProjectMember(r.Context(), db.AddProjectMemberParams{
+		ProjectID: project.ID,
+		UserID:    userID,
+		Role:      "owner",
+	})
+	if err != nil {
+		// Log error, but project was created
 	}
 
 	h.hub.BroadcastEvent("project.created", project)
@@ -77,19 +93,19 @@ func (h *projectHandler) createProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *projectHandler) listProjects(w http.ResponseWriter, r *http.Request) {
-	ownerIDStr := r.URL.Query().Get("owner_id")
-	if ownerIDStr == "" {
-		respondError(w, http.StatusBadRequest, "owner_id query parameter required")
+	userIDStr, ok := apimiddleware.UserIDFromContext(r.Context())
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
-	ownerID := pgtype.UUID{}
-	if err := ownerID.Scan(ownerIDStr); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid owner_id format")
+	userID := pgtype.UUID{}
+	if err := userID.Scan(userIDStr); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
-	projects, err := h.queries.ListProjectsByOwner(r.Context(), ownerID)
+	projects, err := h.queries.ListProjectsByMember(r.Context(), userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list projects")
 		return
@@ -102,6 +118,19 @@ func (h *projectHandler) getProject(w http.ResponseWriter, r *http.Request) {
 	id := pgtype.UUID{}
 	if err := id.Scan(chi.URLParam(r, "id")); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	userIDStr, _ := apimiddleware.UserIDFromContext(r.Context())
+	userID := pgtype.UUID{}
+	userID.Scan(userIDStr)
+
+	_, err := h.queries.GetProjectMember(r.Context(), db.GetProjectMemberParams{
+		ProjectID: id,
+		UserID:    userID,
+	})
+	if err != nil {
+		respondError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
 
@@ -118,6 +147,19 @@ func (h *projectHandler) updateProject(w http.ResponseWriter, r *http.Request) {
 	id := pgtype.UUID{}
 	if err := id.Scan(chi.URLParam(r, "id")); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	userIDStr, _ := apimiddleware.UserIDFromContext(r.Context())
+	userID := pgtype.UUID{}
+	userID.Scan(userIDStr)
+
+	member, err := h.queries.GetProjectMember(r.Context(), db.GetProjectMemberParams{
+		ProjectID: id,
+		UserID:    userID,
+	})
+	if err != nil || (member.Role != "owner" && member.Role != "admin") {
+		respondError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
 
@@ -150,6 +192,19 @@ func (h *projectHandler) deleteProject(w http.ResponseWriter, r *http.Request) {
 	id := pgtype.UUID{}
 	if err := id.Scan(chi.URLParam(r, "id")); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	userIDStr, _ := apimiddleware.UserIDFromContext(r.Context())
+	userID := pgtype.UUID{}
+	userID.Scan(userIDStr)
+
+	member, err := h.queries.GetProjectMember(r.Context(), db.GetProjectMemberParams{
+		ProjectID: id,
+		UserID:    userID,
+	})
+	if err != nil || member.Role != "owner" {
+		respondError(w, http.StatusForbidden, "Forbidden: Only owner can delete")
 		return
 	}
 

@@ -116,6 +116,7 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Use(apimiddleware.Auth(jwtSecretBytes))
 			handlers.RegisterProjectRoutes(r, queries, hub)
+			handlers.RegisterProjectMemberRoutes(r, queries, hub)
 			handlers.RegisterTicketRoutes(r, queries, hub, ticketSvc)
 		})
 	})

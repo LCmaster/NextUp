@@ -23,12 +23,13 @@ func RegisterUserRoutes(r chi.Router, queries db.Querier, jwtSecret []byte) {
 	r.Route("/users", func(r chi.Router) {
 		// Public routes — no auth required
 		r.Get("/setup-status", h.getSetupStatus)
-		r.Post("/setup", h.setupAccount)
+		r.Post("/register", h.register)
 		r.Post("/login", h.login)
 
 		// Protected — requires a valid JWT cookie
 		r.With(apimiddleware.Auth(jwtSecret)).Post("/logout", h.logout)
 		r.With(apimiddleware.Auth(jwtSecret)).Get("/me", h.getProfile)
+		r.With(apimiddleware.Auth(jwtSecret)).Get("/", h.listUsers)
 	})
 }
 
@@ -55,18 +56,8 @@ func (h *userHandler) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]bool{"is_setup": count > 0})
 }
 
-// setupAccount creates the first user account and issues a session cookie.
-func (h *userHandler) setupAccount(w http.ResponseWriter, r *http.Request) {
-	// Check if a user already exists
-	count, err := h.queries.CountUsers(r.Context())
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to check setup status")
-		return
-	}
-	if count > 0 {
-		respondError(w, http.StatusConflict, "Account already set up")
-		return
-	}
+// register creates a user account and issues a session cookie.
+func (h *userHandler) register(w http.ResponseWriter, r *http.Request) {
 
 	var req setupRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -179,3 +170,14 @@ func (h *userHandler) getProfile(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, user)
 }
+
+// listUsers returns all users (for member selection in the UI).
+func (h *userHandler) listUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.queries.ListUsers(r.Context())
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to list users")
+		return
+	}
+	respondJSON(w, http.StatusOK, users)
+}
+
