@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,6 +25,10 @@ import (
 )
 
 func main() {
+	// Set up structured JSON logging
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	// Read config from env
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -32,32 +36,37 @@ func main() {
 	}
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		log.Fatal("DATABASE_URL environment variable is required")
+		slog.Error("DATABASE_URL environment variable is required")
+		os.Exit(1)
 	}
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		log.Fatal("JWT_SECRET environment variable is required")
+		slog.Error("JWT_SECRET environment variable is required")
+		os.Exit(1)
 	}
 
 	// Connect to database
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, databaseURL)
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v", err)
+		slog.Error("Unable to connect to database", "error", err)
+		os.Exit(1)
 	}
 	defer pool.Close()
 
 	// Verify connection
 	if err := pool.Ping(ctx); err != nil {
-		log.Fatalf("Unable to ping database: %v", err)
+		slog.Error("Unable to ping database", "error", err)
+		os.Exit(1)
 	}
-	log.Println("Connected to database")
+	slog.Info("Connected to database")
 
 	// Run migrations
 	if err := runMigrations(databaseURL); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+		slog.Error("Failed to run migrations", "error", err)
+		os.Exit(1)
 	}
-	log.Println("Migrations applied")
+	slog.Info("Migrations applied")
 
 	// Initialize Gemini AI client once at startup.
 	// If GEMINI_API_KEY is absent the server still starts; breakdown endpoint
@@ -66,15 +75,16 @@ func main() {
 	if apiKey := os.Getenv("GEMINI_API_KEY"); apiKey != "" {
 		aiClient, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 		if err != nil {
-			log.Fatalf("Failed to create Gemini client: %v", err)
+			slog.Error("Failed to create Gemini client", "error", err)
+			os.Exit(1)
 		}
 		defer aiClient.Close()
 		m := aiClient.GenerativeModel("gemini-flash-latest")
 		m.ResponseMIMEType = "application/json"
 		aiModel = m
-		log.Println("Gemini AI client initialized")
+		slog.Info("Gemini AI client initialized")
 	} else {
-		log.Println("WARNING: GEMINI_API_KEY not set — AI breakdown endpoint will be unavailable")
+		slog.Warn("GEMINI_API_KEY not set — AI breakdown endpoint will be unavailable")
 	}
 
 	// Initialize dependencies
@@ -115,7 +125,8 @@ func main() {
 		// All project and ticket routes require authentication
 		r.Group(func(r chi.Router) {
 			r.Use(apimiddleware.Auth(jwtSecretBytes))
-			handlers.RegisterProjectRoutes(r, queries, hub)
+			projectSvc := services.NewProjectService(queries, hub)
+			handlers.RegisterProjectRoutes(r, projectSvc)
 			handlers.RegisterProjectMemberRoutes(r, queries, hub)
 			handlers.RegisterTicketRoutes(r, queries, hub, ticketSvc)
 		})
@@ -133,9 +144,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Server starting on port %s", port)
+		slog.Info("Server starting", "port", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			slog.Error("Server error", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -143,13 +155,14 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
+	slog.Info("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+	if err := srv.Shutdown(ctxTimeout); err != nil {
+		slog.Error("Server forced to shutdown", "error", err)
+		os.Exit(1)
 	}
-	log.Println("Server exited")
+	slog.Info("Server exited")
 }
