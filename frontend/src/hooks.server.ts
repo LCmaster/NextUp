@@ -19,8 +19,8 @@ export const handle: Handle = async ({ event, resolve }) => {
         throw redirect(303, '/login');
     }
 
-    // 3. Redirect authenticated users away from public auth routes
-    if (event.locals.isAuthenticated && (pathname === '/login' || pathname === '/register')) {
+    // 3. Redirect authenticated users away from public auth routes and the root
+    if (event.locals.isAuthenticated && (pathname === '/' || pathname === '/login' || pathname === '/register')) {
         throw redirect(303, '/dashboard');
     }
 

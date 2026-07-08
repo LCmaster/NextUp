@@ -6,16 +6,6 @@
 	let loading = $state(true);
 
 	onMount(() => {
-		const unsub = userStore.subscribe((user) => {
-			if (user !== undefined) {
-				if (user) {
-					goto('/dashboard');
-				} else {
-					goto('/login');
-				}
-			}
-		});
-
 		// If API is not reachable after a timeout, show fallback
 		const timeout = setTimeout(() => {
 			if ($userStore === undefined) {
@@ -24,7 +14,6 @@
 		}, 3000);
 
 		return () => {
-			unsub();
 			clearTimeout(timeout);
 		};
 	});
