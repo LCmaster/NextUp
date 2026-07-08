@@ -23,14 +23,10 @@
 >
 	<!-- Logo -->
 	<div
-		class="flex items-center gap-3 border-b border-surface-200 px-6 py-5 dark:border-surface-800"
+		class="flex items-center justify-center border-b border-surface-200 px-6 py-5 dark:border-surface-800"
 	>
-		<div
-			class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 text-sm font-bold text-white shadow-md"
-		>
-			N
-		</div>
-		<span class="text-lg font-bold tracking-tight text-surface-900 dark:text-white">NextUp</span>
+		<img src="/logo-light.png" alt="NextUp Logo" class="h-8 object-contain dark:hidden" />
+		<img src="/logo-dark.png" alt="NextUp Logo" class="hidden h-8 object-contain dark:block" />
 	</div>
 
 	<!-- Navigation -->

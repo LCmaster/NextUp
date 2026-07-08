@@ -31,11 +31,8 @@
 	<div class="w-full max-w-md">
 		<!-- Logo -->
 		<div class="mb-8 text-center">
-			<div
-				class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-2xl font-bold text-white shadow-xl shadow-primary-500/25"
-			>
-				N
-			</div>
+			<img src="/logo-light.png" alt="NextUp Logo" class="mx-auto mb-4 h-16 object-contain dark:hidden" />
+			<img src="/logo-dark.png" alt="NextUp Logo" class="mx-auto mb-4 hidden h-16 object-contain dark:block" />
 			<h1 class="text-3xl font-bold tracking-tight text-surface-900 dark:text-white">
 				Welcome Back
 			</h1>

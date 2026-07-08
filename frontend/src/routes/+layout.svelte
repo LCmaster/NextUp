@@ -32,7 +32,7 @@
 	<title>NextUp — Task & Ticket Manager</title>
 	<meta
 		name="description"
-		content="A modern ticketing and to-do list application for teams and individuals."
+		content="A modern ticket management application for teams and individuals."
 	/>
 </svelte:head>
 

@@ -44,11 +44,8 @@
 	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-surface-100 via-primary-50 to-surface-100 dark:from-surface-950 dark:via-surface-900 dark:to-surface-950 p-4"
 >
 	<div class="w-full max-w-md text-center">
-		<div
-			class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-2xl font-bold text-white shadow-xl shadow-primary-500/25"
-		>
-			N
-		</div>
+		<img src="/logo-light.png" alt="NextUp Logo" class="mx-auto mb-6 h-16 object-contain dark:hidden" />
+		<img src="/logo-dark.png" alt="NextUp Logo" class="mx-auto mb-6 hidden h-16 object-contain dark:block" />
 
 		<div
 			class="rounded-2xl border border-surface-200/60 bg-white/80 p-8 shadow-xl shadow-surface-900/5 backdrop-blur-sm dark:border-surface-800 dark:bg-surface-900/80"
