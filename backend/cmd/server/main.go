@@ -147,7 +147,7 @@ func main() {
 			r.Use(apimiddleware.Auth(jwtSecretBytes))
 			projectSvc := services.NewProjectService(queries, pool, hub)
 			handlers.RegisterProjectRoutes(r, projectSvc)
-			handlers.RegisterProjectMemberRoutes(r, queries, hub, m, frontendURL)
+			handlers.RegisterProjectMemberRoutes(r, queries, hub, m, frontendURL, projectSvc)
 			handlers.RegisterTicketRoutes(r, queries, hub, ticketSvc)
 		})
 	})

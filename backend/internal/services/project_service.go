@@ -145,3 +145,59 @@ func (s *ProjectService) DeleteProject(ctx context.Context, id, userID pgtype.UU
 	s.hub.BroadcastEvent("project.deleted", map[string]string{"id": id.String()})
 	return nil
 }
+
+func (s *ProjectService) TransferOwnership(ctx context.Context, projectID, newOwnerID, callerID pgtype.UUID) error {
+	callerRole, err := s.queries.GetProjectMember(ctx, db.GetProjectMemberParams{
+		ProjectID: projectID,
+		UserID:    callerID,
+	})
+	if err != nil || callerRole.Role != "owner" {
+		return ErrForbidden
+	}
+
+	targetRole, err := s.queries.GetProjectMember(ctx, db.GetProjectMemberParams{
+		ProjectID: projectID,
+		UserID:    newOwnerID,
+	})
+	if err != nil || targetRole.Role != "admin" {
+		return fmt.Errorf("new owner must be an admin")
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				slog.Error("failed to rollback TransferOwnership transaction", "error", rbErr)
+			}
+		}
+	}()
+
+	qtx := db.New(tx)
+
+	_, err = qtx.UpdateProjectMemberRole(ctx, db.UpdateProjectMemberRoleParams{
+		ProjectID: projectID,
+		UserID:    callerID,
+		Role:      "admin",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to demote owner: %w", err)
+	}
+
+	_, err = qtx.UpdateProjectMemberRole(ctx, db.UpdateProjectMemberRoleParams{
+		ProjectID: projectID,
+		UserID:    newOwnerID,
+		Role:      "owner",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to promote new owner: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}

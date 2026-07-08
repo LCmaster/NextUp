@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/LCmaster/NextUp/internal/db"
 	"github.com/LCmaster/NextUp/internal/mailer"
 	apimiddleware "github.com/LCmaster/NextUp/internal/middleware"
+	"github.com/LCmaster/NextUp/internal/services"
 	"github.com/LCmaster/NextUp/internal/ws"
 )
 
@@ -23,15 +25,17 @@ type projectMemberHandler struct {
 	hub         *ws.Hub
 	mailer      mailer.Mailer
 	frontendURL string
+	svc         *services.ProjectService
 }
 
 // RegisterProjectMemberRoutes sets up routes for members and invites
-func RegisterProjectMemberRoutes(r chi.Router, queries db.Querier, hub *ws.Hub, m mailer.Mailer, frontendURL string) {
+func RegisterProjectMemberRoutes(r chi.Router, queries db.Querier, hub *ws.Hub, m mailer.Mailer, frontendURL string, svc *services.ProjectService) {
 	h := &projectMemberHandler{
 		queries:     queries,
 		hub:         hub,
 		mailer:      m,
 		frontendURL: frontendURL,
+		svc:         svc,
 	}
 
 	r.Route("/projects/{id}/members", func(r chi.Router) {
@@ -217,49 +221,16 @@ func (h *projectMemberHandler) transferOwnership(w http.ResponseWriter, r *http.
 	callerID := pgtype.UUID{}
 	callerID.Scan(callerIDStr)
 
-	callerRole, err := h.getMemberRole(r.Context(), projectID, callerID)
-	if err != nil || callerRole != "owner" {
-		respondError(w, http.StatusForbidden, "Only owner can transfer ownership")
-		return
-	}
-
-	targetRole, err := h.getMemberRole(r.Context(), projectID, newOwnerID)
-	if err != nil || targetRole != "admin" {
-		respondError(w, http.StatusBadRequest, "New owner must be an admin")
-		return
-	}
-
-	// Transaction to swap roles
-	ctx := r.Context()
-	// NOTE: Because SQLC generated methods are on queries, doing a transaction requires the pool.
-	// We will simplify this by doing two updates sequentially. If the second fails, it's inconsistent,
-	// but it's fine for this scale, or we should use pgx transactions. Let's do sequential for now.
-	
-	// Demote owner to admin first, to avoid two owners at once
-	_, err = h.queries.UpdateProjectMemberRole(ctx, db.UpdateProjectMemberRoleParams{
-		ProjectID: projectID,
-		UserID:    callerID,
-		Role:      "admin",
-	})
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to demote owner")
-		return
-	}
-
-	// Promote new owner
-	_, err = h.queries.UpdateProjectMemberRole(ctx, db.UpdateProjectMemberRoleParams{
-		ProjectID: projectID,
-		UserID:    newOwnerID,
-		Role:      "owner",
-	})
-	if err != nil {
-		// Rollback attempt
-		h.queries.UpdateProjectMemberRole(ctx, db.UpdateProjectMemberRoleParams{
-			ProjectID: projectID,
-			UserID:    callerID,
-			Role:      "owner",
-		})
-		respondError(w, http.StatusInternalServerError, "Failed to promote new owner")
+	if err := h.svc.TransferOwnership(r.Context(), projectID, newOwnerID, callerID); err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			respondError(w, http.StatusForbidden, "Only owner can transfer ownership")
+			return
+		}
+		if err.Error() == "new owner must be an admin" {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to transfer ownership")
 		return
 	}
 
@@ -330,13 +301,16 @@ func (h *projectMemberHandler) createInvite(w http.ResponseWriter, r *http.Reque
 	// Send email asynchronously
 	inviteLink := h.frontendURL + "/invites/" + token
 	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		
 		subject := "You've been invited to join a project on NextUp"
 		body := `<p>You have been invited to join a project as a <strong>` + role + `</strong>.</p>
 <p>Click the link below to accept the invitation:</p>
 <p><a href="` + inviteLink + `">` + inviteLink + `</a></p>`
-		if err := h.mailer.SendEmail(context.Background(), req.Email, subject, body); err != nil {
+		if err := h.mailer.SendEmail(ctx, req.Email, subject, body); err != nil {
 			// Just log the error, don't fail the request
-			println("Failed to send invite email:", err.Error())
+			slog.Error("Failed to send invite email", "error", err)
 		}
 	}()
 

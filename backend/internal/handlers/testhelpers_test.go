@@ -231,7 +231,7 @@ func newTestRouter(q *MockQuerier) http.Handler {
 		handlers.RegisterUserRoutes(r, q, []byte("secret"))
 		projectSvc := services.NewProjectService(q, &mockBeginner{q: q}, hub)
 		handlers.RegisterProjectRoutes(r, projectSvc)
-		handlers.RegisterProjectMemberRoutes(r, q, hub, mailer.NewMockMailer(), "http://localhost:5173")
+		handlers.RegisterProjectMemberRoutes(r, q, hub, mailer.NewMockMailer(), "http://localhost:5173", projectSvc)
 		handlers.RegisterTicketRoutes(r, q, hub, svc)
 	})
 	return r
