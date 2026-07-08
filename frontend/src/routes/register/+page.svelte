@@ -50,8 +50,16 @@
 	<div class="w-full max-w-md">
 		<!-- Logo -->
 		<div class="mb-8 text-center">
-			<img src="/logo-light.png" alt="NextUp Logo" class="mx-auto mb-4 h-16 object-contain dark:hidden" />
-			<img src="/logo-dark.png" alt="NextUp Logo" class="mx-auto mb-4 hidden h-16 object-contain dark:block" />
+			<img
+				src="/logo-light.png"
+				alt="NextUp Logo"
+				class="mx-auto mb-4 h-16 object-contain dark:hidden"
+			/>
+			<img
+				src="/logo-dark.png"
+				alt="NextUp Logo"
+				class="mx-auto mb-4 hidden h-16 object-contain dark:block"
+			/>
 			<h1 class="text-3xl font-bold tracking-tight text-surface-900 dark:text-white">
 				Create an Account
 			</h1>
