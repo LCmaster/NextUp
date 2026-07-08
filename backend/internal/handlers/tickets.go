@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"errors"
 	"net/http"
 
@@ -54,25 +53,7 @@ type updateTicketRequest struct {
 	ParentID    string `json:"parent_id,omitempty"`
 }
 
-func (h *ticketHandler) canViewTicket(ctx context.Context, ticket db.Ticket, userID pgtype.UUID) (bool, string) {
-	member, err := h.queries.GetProjectMember(ctx, db.GetProjectMemberParams{
-		ProjectID: ticket.ProjectID,
-		UserID:    userID,
-	})
-	if err != nil {
-		return false, ""
-	}
-	if member.Role == "owner" || member.Role == "admin" {
-		return true, member.Role
-	}
-	if ticket.AssigneeID == userID {
-		return true, member.Role
-	}
-	if ticket.CreatorID == userID && !ticket.AssigneeID.Valid {
-		return true, member.Role
-	}
-	return false, member.Role
-}
+
 
 func (h *ticketHandler) createTicket(w http.ResponseWriter, r *http.Request) {
 	var req createTicketRequest
@@ -109,11 +90,11 @@ func (h *ticketHandler) createTicket(w http.ResponseWriter, r *http.Request) {
 	// Defaults are handled by the database; only set when explicitly provided.
 	status := req.Status
 	if status == "" {
-		status = "todo"
+		status = services.StatusTodo
 	}
 	priority := req.Priority
 	if priority == "" {
-		priority = "medium"
+		priority = services.PriorityMedium
 	}
 
 	description := pgtype.Text{}
@@ -208,7 +189,7 @@ func (h *ticketHandler) getTicket(w http.ResponseWriter, r *http.Request) {
 	userID := pgtype.UUID{}
 	userID.Scan(userIDStr)
 
-	if canView, _ := h.canViewTicket(r.Context(), ticket, userID); !canView {
+	if canView, _ := h.svc.CanViewTicket(r.Context(), ticket, userID); !canView {
 		respondError(w, http.StatusForbidden, "Forbidden")
 		return
 	}
@@ -233,7 +214,7 @@ func (h *ticketHandler) updateTicket(w http.ResponseWriter, r *http.Request) {
 	userID := pgtype.UUID{}
 	userID.Scan(userIDStr)
 
-	canView, role := h.canViewTicket(r.Context(), ticketToUpdate, userID)
+	canView, role := h.svc.CanViewTicket(r.Context(), ticketToUpdate, userID)
 	if !canView {
 		respondError(w, http.StatusForbidden, "Forbidden")
 		return
@@ -315,7 +296,7 @@ func (h *ticketHandler) deleteTicket(w http.ResponseWriter, r *http.Request) {
 	userID := pgtype.UUID{}
 	userID.Scan(userIDStr)
 
-	canView, role := h.canViewTicket(r.Context(), ticketToDelete, userID)
+	canView, role := h.svc.CanViewTicket(r.Context(), ticketToDelete, userID)
 	if !canView || (role != "owner" && role != "admin" && ticketToDelete.CreatorID != userID) {
 		respondError(w, http.StatusForbidden, "Forbidden")
 		return

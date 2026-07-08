@@ -31,6 +31,33 @@ func NewTicketService(queries db.Querier, hub *ws.Hub, ai AIGenerator) *TicketSe
 	return &TicketService{queries: queries, hub: hub, ai: ai}
 }
 
+const (
+	StatusTodo     = "todo"
+	PriorityMedium = "medium"
+)
+
+// CanViewTicket checks if a user is allowed to view or edit a ticket.
+// It returns a boolean indicating permission, and the user's role in the project.
+func (s *TicketService) CanViewTicket(ctx context.Context, ticket db.Ticket, userID pgtype.UUID) (bool, string) {
+	member, err := s.queries.GetProjectMember(ctx, db.GetProjectMemberParams{
+		ProjectID: ticket.ProjectID,
+		UserID:    userID,
+	})
+	if err != nil {
+		return false, ""
+	}
+	if member.Role == "owner" || member.Role == "admin" {
+		return true, member.Role
+	}
+	if ticket.AssigneeID == userID {
+		return true, member.Role
+	}
+	if ticket.CreatorID == userID && !ticket.AssigneeID.Valid {
+		return true, member.Role
+	}
+	return false, member.Role
+}
+
 // generatedTask is the expected shape of AI-generated sub-tasks.
 type generatedTask struct {
 	Title       string `json:"title"`
@@ -92,8 +119,8 @@ func (s *TicketService) Breakdown(ctx context.Context, ticketID pgtype.UUID) ([]
 			ProjectID:   ticket.ProjectID,
 			Title:       task.Title,
 			Description: desc,
-			Status:      "todo",
-			Priority:    "medium",
+			Status:      StatusTodo,
+			Priority:    PriorityMedium,
 			AssigneeID:  pgtype.UUID{},
 			ParentID:    ticketID,
 		})
