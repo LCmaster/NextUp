@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -108,12 +109,15 @@ func (h *projectHandler) getProject(w http.ResponseWriter, r *http.Request) {
 
 	project, err := h.svc.GetProject(r.Context(), id, userID)
 	if err != nil {
-		// Note: The service might return forbidden or not found, but we map it loosely here
-		if err.Error() == "forbidden: forbidden" || err.Error() == "forbidden: no rows in result set" {
+		if errors.Is(err, services.ErrForbidden) {
 			respondError(w, http.StatusForbidden, "Forbidden")
 			return
 		}
-		respondError(w, http.StatusNotFound, "Project not found")
+		if errors.Is(err, services.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "Project not found")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to get project")
 		return
 	}
 
@@ -139,7 +143,7 @@ func (h *projectHandler) updateProject(w http.ResponseWriter, r *http.Request) {
 
 	project, err := h.svc.UpdateProject(r.Context(), id, userID, req.Name, req.Description)
 	if err != nil {
-		if err.Error() == "forbidden: insufficient permissions" {
+		if errors.Is(err, services.ErrForbidden) {
 			respondError(w, http.StatusForbidden, "Forbidden")
 			return
 		}
@@ -162,7 +166,7 @@ func (h *projectHandler) deleteProject(w http.ResponseWriter, r *http.Request) {
 	userID.Scan(userIDStr)
 
 	if err := h.svc.DeleteProject(r.Context(), id, userID); err != nil {
-		if err.Error() == "forbidden: only owner can delete" {
+		if errors.Is(err, services.ErrForbidden) {
 			respondError(w, http.StatusForbidden, "Forbidden: Only owner can delete")
 			return
 		}

@@ -91,12 +91,12 @@ func (s *ProjectService) GetProject(ctx context.Context, id, userID pgtype.UUID)
 		UserID:    userID,
 	})
 	if err != nil {
-		return db.Project{}, fmt.Errorf("forbidden: %w", err)
+		return db.Project{}, fmt.Errorf("%w: %v", ErrForbidden, err)
 	}
 
 	project, err := s.queries.GetProjectByID(ctx, id)
 	if err != nil {
-		return db.Project{}, fmt.Errorf("not found: %w", err)
+		return db.Project{}, fmt.Errorf("%w: %v", ErrNotFound, err)
 	}
 
 	return project, nil
@@ -108,7 +108,7 @@ func (s *ProjectService) UpdateProject(ctx context.Context, id, userID pgtype.UU
 		UserID:    userID,
 	})
 	if err != nil || (member.Role != "owner" && member.Role != "admin") {
-		return db.Project{}, fmt.Errorf("forbidden: insufficient permissions")
+		return db.Project{}, ErrForbidden
 	}
 
 	desc := pgtype.Text{}
@@ -135,7 +135,7 @@ func (s *ProjectService) DeleteProject(ctx context.Context, id, userID pgtype.UU
 		UserID:    userID,
 	})
 	if err != nil || member.Role != "owner" {
-		return fmt.Errorf("forbidden: only owner can delete")
+		return ErrForbidden
 	}
 
 	if err := s.queries.DeleteProject(ctx, id); err != nil {
